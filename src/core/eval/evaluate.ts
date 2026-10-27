@@ -10,6 +10,8 @@ import { NumericError } from '../numeric/errors';
 import { integrate } from '../numeric/integrate';
 import type { Node } from '../parser/parser';
 import { PREFIXES } from '../../editor/tokens';
+import { CONST_CATEGORIES } from '../../data/constants';
+import { CONV_CATEGORIES } from '../../data/conversions';
 import * as V from '../value';
 import type { Value } from '../value';
 import * as T from './trig';
@@ -27,6 +29,9 @@ export interface EvalContext {
 type Bindings = ReadonlyMap<string, Value>;
 
 const MAX_SUM_TERMS = 100000;
+
+const CONSTANTS = new Map(CONST_CATEGORIES.flatMap((c) => c.items).map((k) => [`const:${k.symbol}`, k]));
+const CONVERSIONS = new Map(CONV_CATEGORIES.flatMap((c) => c.items).map((k) => [k.label, k]));
 
 export class Evaluator {
   constructor(private readonly ctx: EvalContext) {}
@@ -70,6 +75,11 @@ export class Evaluator {
       }
       case 'pow':
         return V.pow(this.eval(n.base, bind), this.eval(n.exp, bind));
+      case 'conv': {
+        const conv = CONVERSIONS.get(n.label);
+        if (!conv) throw new CalcError('syntax');
+        return V.fl(conv.convert(V.toNumber(this.eval(n.arg, bind))));
+      }
       case 'call':
         return this.call(n.fn, n.args, bind);
       case 'tpl':
@@ -101,6 +111,8 @@ export class Evaluator {
       case 'Ans': return this.ctx.ans;
       case 'Ran#': return V.rat(Rational.of(BigInt(Math.floor(this.ctx.random() * 1000)), 1000n));
     }
+    const physical = CONSTANTS.get(name);
+    if (physical) return V.fl(physical.value);
     // i und weitere Konstanten sind nur in anderen Modi zulässig
     throw new CalcError('syntax');
   }
@@ -254,7 +266,7 @@ function guard(ok: boolean, f: () => Value): Value {
 
 function numeric(f: () => number): Value {
   try {
-    return V.fl(round15(f()));
+    return { ...V.fl(round15(f())), numeric: true } as Value;
   } catch (e) {
     if (e instanceof NumericError) throw new CalcError(e.kind === 'timeout' ? 'timeout' : 'math');
     throw e;

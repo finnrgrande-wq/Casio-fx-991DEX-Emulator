@@ -122,7 +122,8 @@ export class Framebuffer {
         return;
       }
       case 'rect':
-        if (op.invert) this.invertRect(op.x, op.y, op.w, op.h);
+        if (op.erase) this.fillRect(op.x, op.y, op.w, op.h, false);
+        else if (op.invert) this.invertRect(op.x, op.y, op.w, op.h);
         else if (op.fill) this.fillRect(op.x, op.y, op.w, op.h);
         else this.strokeRect(op.x, op.y, op.w, op.h);
         return;

@@ -7,7 +7,7 @@ export type FontId = 'L' | 'S';
 
 export type DrawOp =
   | { kind: 'text'; x: number; y: number; text: string; font: FontId; invert?: boolean; align?: 'left' | 'right' }
-  | { kind: 'rect'; x: number; y: number; w: number; h: number; fill: boolean; invert?: boolean }
+  | { kind: 'rect'; x: number; y: number; w: number; h: number; fill: boolean; invert?: boolean; erase?: boolean }
   | { kind: 'bitmap'; x: number; y: number; bitmap: Bitmap; invert?: boolean }
   | { kind: 'line'; x1: number; y1: number; x2: number; y2: number };
 

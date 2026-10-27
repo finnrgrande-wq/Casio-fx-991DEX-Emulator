@@ -8,7 +8,8 @@ import { CalcError } from './errors';
 export type Value =
   | { k: 's'; s: Surd }
   | { k: 'pi'; q: Rational }
-  | { k: 'f'; x: number };
+  /** numeric: Ergebnis von ∫ oder d/dx – darf in der Anzeige als Bruch erkannt werden. */
+  | { k: 'f'; x: number; numeric?: boolean };
 
 /** Größte Stellenzahl von Zähler/Nenner, bis zu der exakt weitergerechnet wird. */
 const MAX_EXACT_DIGITS = 40;

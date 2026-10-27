@@ -1,8 +1,11 @@
 // Katalog aller Eingabe-Token: Anzeige und Art (für Layout und Parser).
 
+import { CONST_CATEGORIES } from '../data/constants';
+import { CONV_CATEGORIES } from '../data/conversions';
+
 export type TokenKind =
   | 'digit' | 'comma' | 'binop' | 'neg' | 'lparen' | 'rparen' | 'sep' | 'colon' | 'eq'
-  | 'func' | 'postfix' | 'var' | 'const' | 'angleUnit';
+  | 'func' | 'postfix' | 'var' | 'const' | 'angleUnit' | 'conv';
 
 export interface TokenInfo {
   /** Text in der Anzeige (Glyph-Schlüssel der Pixelschriften). */
@@ -61,6 +64,9 @@ export const TOKENS: Readonly<Record<string, TokenInfo>> = {
   Ans: T('Ans', 'const'),
   'Ran#': T('Ran#', 'const'),
   ...Object.fromEntries(PREFIXES.map(([sym]) => [`pfx:${sym}`, T(sym, 'postfix')])),
+  // Wissenschaftliche Konstanten (SHIFT 7) und Umrechnungen (SHIFT 8)
+  ...Object.fromEntries(CONST_CATEGORIES.flatMap((c) => c.items).map((k) => [`const:${k.symbol}`, T(k.symbol, 'const')])),
+  ...Object.fromEntries(CONV_CATEGORIES.flatMap((c) => c.items).map((k) => [`conv:${k.label}`, T(k.label, 'conv')])),
 };
 
 export function tokenInfo(tok: string): TokenInfo {

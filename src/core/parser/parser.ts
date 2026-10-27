@@ -20,6 +20,7 @@ export type Node =
   | { t: 'bin'; op: BinOp; l: Node; r: Node; at: Pos }
   | { t: 'post'; op: PostOp; arg: Node; at: Pos }
   | { t: 'dms'; parts: Node[]; at: Pos }
+  | { t: 'conv'; label: string; arg: Node; at: Pos }
   | { t: 'pow'; base: Node; exp: Node; at: Pos }
   | { t: 'call'; fn: string; args: Node[]; at: Pos }
   | { t: 'tpl'; type: Exclude<TemplateType, 'pow'>; args: Node[]; at: Pos };
@@ -149,16 +150,26 @@ export class Parser {
 
   /** Implizite Multiplikation: Werte, die ohne Operator aufeinander folgen. */
   private implicit(r: SlotReader): Node {
-    let l = this.unary(r);
+    let l = this.converted(r);
     while (this.startsValue(r.peek())) {
       const at = r.here;
-      const right = this.unary(r);
+      const right = this.converted(r);
       // Sexagesimal-Eingabe 2°20°30° bildet einen Wert
       if (l.t === 'dms' && right.t === 'dms' && l.parts.length + right.parts.length <= 3) {
         l = { t: 'dms', parts: [...l.parts, ...right.parts], at: l.at };
       } else l = { t: 'bin', op: 'imul', l, r: right, at };
     }
     return l;
+  }
+
+  /** Einheitenumrechnung (z. B. 12,5ft▸m): bindet schwächer als das Vorzeichen. */
+  private converted(r: SlotReader): Node {
+    let node = this.unary(r);
+    while (kindOf(r.peek()) === 'conv') {
+      const c = r.next();
+      node = { t: 'conv', label: tokOf(c)!.slice('conv:'.length), arg: node, at: c.at };
+    }
+    return node;
   }
 
   private startsValue(c: Cell | undefined): boolean {

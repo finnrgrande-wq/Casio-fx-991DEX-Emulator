@@ -13,32 +13,19 @@ import { layoutInput, layoutResult, translate } from '../../display/mathLayout';
 import type { ResultForm } from '../../display/resultForm';
 import type { DrawOp, Scene } from '../../display/scene';
 import { LCD_HEIGHT, LCD_WIDTH } from '../../display/types';
-import { Editor, type Cursor, type Slot, type TemplateType } from '../../editor/model';
-import { PREFIXES, TOKENS } from '../../editor/tokens';
+import { Editor, type Cursor, type Slot } from '../../editor/model';
+import { PREFIXES } from '../../editor/tokens';
 import type { KeyId } from '../../keys/keymap';
 import type { VarName } from '../../calculator/state';
 import { ListMenu, type MenuItem } from '../listMenu';
 import type { Host, KeyEvent, Screen } from '../screen';
 import { RecallScreen } from './recallScreen';
-
-/** Aktion → einzufügendes Token. */
-const INSERT: Readonly<Record<string, string>> = {
-  'in:comma': ',', 'in:add': '+', 'in:sub': '−', 'in:mul': '×', 'in:div': '÷', 'in:neg': 'neg',
-  'in:lparen': '(', 'in:rparen': ')', 'in:semicolon': ';', 'in:colon': ':', 'in:eq': '=',
-  'in:square': '²', 'in:cube': '³', 'in:inverse': '⁻¹', 'in:factorial': '!', 'in:percent': '%',
-  'in:dms': 'dms', 'in:npr': 'nPr', 'in:ncr': 'nCr', 'in:divrem': '÷R', 'in:pi': 'π', 'in:e': 'e',
-  'in:ans': 'Ans', 'in:ran': 'Ran#', 'in:i': 'i', 'in:angle': '∠',
-  'fn:sin': 'sin(', 'fn:cos': 'cos(', 'fn:tan': 'tan(', 'fn:asin': 'sin⁻¹(', 'fn:acos': 'cos⁻¹(', 'fn:atan': 'tan⁻¹(',
-  'fn:log': 'log(', 'fn:ln': 'ln(', 'fn:pol': 'Pol(', 'fn:rec': 'Rec(', 'fn:gcd': 'GCD(', 'fn:lcm': 'LCM(',
-  'fn:int': 'Int(', 'fn:intg': 'Intg(', 'fn:rnd': 'Rnd(', 'fn:rndfix': 'RndFix(', 'fn:ranint': 'RanInt#(',
-};
-
-/** Aktion → Schablone. */
-const TEMPLATES: Readonly<Record<string, TemplateType>> = {
-  'tpl:frac': 'frac', 'tpl:mixed': 'mixed', 'tpl:sqrt': 'sqrt', 'tpl:cbrt': 'cbrt', 'tpl:root': 'root',
-  'tpl:power': 'pow', 'tpl:pow10': 'pow10', 'tpl:exp': 'exp', 'tpl:logab': 'logab', 'tpl:integral': 'integral',
-  'tpl:derivative': 'deriv', 'tpl:sum': 'sum', 'tpl:product': 'prod', 'tpl:recurring': 'recurring', 'in:exp10': 'e10',
-};
+import { applyInsertAction, continuesWithAns, isInsertAction } from './input';
+import { CalcPrompt, type PromptOwner } from './calcPrompt';
+import { SolveScreen } from './solveScreen';
+import { freeVariables } from '../../core/parser/vars';
+import { CONST_CATEGORIES } from '../../data/constants';
+import { CONV_CATEGORIES } from '../../data/conversions';
 
 /** Nach STO ohne ALPHA erreichbare Variablen (Taste → Name). */
 const STO_KEYS: Partial<Record<KeyId, VarName>> = {
@@ -57,13 +44,15 @@ interface Entry {
   showExact: boolean;
   mixed: boolean;
   eng?: number;
+  /** FACT-Ansicht aktiv. */
+  factors?: boolean;
   /** Anhang hinter der Eingabe, z. B. „→A“ oder „M+“. */
   suffix?: string;
 }
 
 type Phase = 'edit' | 'result' | 'error';
 
-export class CalcScreen implements Screen {
+export class CalcScreen implements Screen, PromptOwner {
   readonly editor = new Editor();
   private phase: Phase = 'edit';
   private history: Entry[] = [];
@@ -123,6 +112,22 @@ export class CalcScreen implements Screen {
       case 'cmd:mminus':
         this.memory(a === 'cmd:mplus' ? 1 : -1);
         return true;
+      case 'cmd:calc':
+      case 'cmd:solve':
+        this.startPrompt(a === 'cmd:solve');
+        return true;
+      case 'sys:const':
+        host.push(new ListMenu(this.catalogMenu(CONST_CATEGORIES.map((c) => ({
+          title: c.title,
+          items: c.items.map((k) => ({ label: k.symbol, tok: `const:${k.symbol}` })),
+        })))));
+        return true;
+      case 'sys:conv':
+        host.push(new ListMenu(this.catalogMenu(CONV_CATEGORIES.map((c) => ({
+          title: c.title,
+          items: c.items.map((k) => ({ label: k.label, tok: `conv:${k.label}` })),
+        })))));
+        return true;
       case 'sys:optn':
         host.push(new ListMenu(this.optnMenu()));
         return true;
@@ -172,6 +177,9 @@ export class CalcScreen implements Screen {
           entry.showExact = !entry.showExact;
           entry.eng = undefined;
         }
+        return true;
+      case 'cmd:fact':
+        this.toggleFactors(entry);
         return true;
       case 'cmd:mixedToggle':
         if (entry.exact?.kind === 'fraction') {
@@ -223,30 +231,7 @@ export class CalcScreen implements Screen {
   }
 
   private insertAction(a: string): boolean {
-    if (a.startsWith('in:digit:')) {
-      this.editor.insertToken(a.slice('in:digit:'.length));
-      return true;
-    }
-    if (a.startsWith('in:var:')) {
-      this.editor.insertToken(a.slice('in:var:'.length));
-      return true;
-    }
-    if (a === 'fn:abs') {
-      if (this.linear) this.editor.insertToken('Abs(');
-      else this.editor.insertTemplate('abs');
-      return true;
-    }
-    const tpl = TEMPLATES[a];
-    if (tpl) {
-      this.editor.insertTemplate(tpl);
-      return true;
-    }
-    const tok = INSERT[a];
-    if (tok) {
-      this.editor.insertToken(tok);
-      return true;
-    }
-    return false;
+    return applyInsertAction(this.editor, a, this.linear);
   }
 
   /** Fügt ein Token ein (auch aus Menüs/RECALL); ein angezeigtes Ergebnis startet eine neue Eingabe. */
@@ -267,7 +252,7 @@ export class CalcScreen implements Screen {
 
   // --- Rechnen ---
 
-  private context(): EvalContext {
+  context(): EvalContext {
     const st = this.host.state;
     return {
       angle: st.settings.angle,
@@ -400,6 +385,85 @@ export class CalcScreen implements Screen {
     this.host.persist();
   }
 
+  /** Rückkehr aus CALC/SOLVE: Term wieder in der Eingabe, ggf. Cursor an der Fehlerstelle. */
+  resume(input: Slot, at?: Cursor): void {
+    this.editor.load(input);
+    if (at && this.validCursor(at)) this.editor.setCursor(at);
+    this.phase = 'edit';
+    this.view = 0;
+  }
+
+  /** CALC bzw. SOLVE für die aktuelle Eingabe oder die angezeigte Rechnung. */
+  private startPrompt(solveMode: boolean): void {
+    const input = !this.editor.isEmpty ? this.editor.snapshot().root : this.phase === 'result' ? this.shown?.input : undefined;
+    if (!input) return;
+    try {
+      const statements = parse(input);
+      let vars = freeVariables(statements);
+      if (solveMode) {
+        if (statements.length !== 1) throw new CalcError('syntax');
+        if (vars.length === 0) throw new CalcError('variable');
+        this.host.push(new SolveScreen(this.host, this, input, statements[0], vars));
+        return;
+      }
+      // Bei „y=…“ wird die linke Variable berechnet, nicht abgefragt
+      const first = statements[0];
+      if (first.kind === 'eq' && first.l.t === 'var') {
+        const target = first.l.name;
+        if (!statements.some((s) => s.kind === 'eq' ? s.r && containsVar(s.r, target) : containsVar(s.expr, target))) vars = vars.filter((v) => v !== target);
+      }
+      if (vars.length === 0 && !statements.some((s) => s.kind === 'eq')) {
+        this.editor.load(input);
+        this.execute({});
+        return;
+      }
+      this.editor.load(input);
+      this.host.push(new CalcPrompt(this.host, this, input, statements, vars));
+    } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+      this.editor.load(input);
+      this.error = e;
+      this.phase = 'error';
+    }
+  }
+
+  /** Kategorie-Menü (CONST/CONV) mit Untermenü der Einträge; Auswahl fügt das Token ein. */
+  private catalogMenu(categories: { title: string; items: { label: string; tok: string }[] }[]): MenuItem[] {
+    const put = (tok: string) => (host: Host) => {
+      while (host.top !== this) host.pop();
+      this.insertCatalogToken(tok);
+    };
+    return categories.map((c) => ({ label: c.title, sub: c.items.map((it) => ({ label: it.label, run: put(it.tok) })) }));
+  }
+
+  /** Umrechnungen setzen ein angezeigtes Ergebnis mit Ans fort, Konstanten beginnen neu. */
+  private insertCatalogToken(tok: string): void {
+    if (this.phase === 'result' && tok.startsWith('conv:')) {
+      this.editor.clear();
+      this.editor.insertToken('Ans');
+      this.phase = 'edit';
+      this.view = 0;
+    }
+    this.insertToken(tok);
+  }
+
+  /** FACT: Primfaktorzerlegung des angezeigten Ergebnisses (erneut FACT oder = schaltet zurück). */
+  private toggleFactors(entry: Entry): void {
+    if (entry.text && entry.factors) {
+      entry.text = undefined;
+      entry.factors = false;
+      return;
+    }
+    const n = V.asInteger(entry.value);
+    if (entry.text || n === undefined || n <= 0n || n >= 10n ** 10n) {
+      this.error = new CalcError('math');
+      this.phase = 'error';
+      return;
+    }
+    entry.text = { kind: 'text', text: primeFactors(n) };
+    entry.factors = true;
+  }
+
   private optnMenu(): MenuItem[] {
     const put = (tok: string) => (host: Host) => {
       while (host.top !== this) host.pop();
@@ -485,16 +549,25 @@ export class CalcScreen implements Screen {
 }
 
 
-function isInsertAction(a: string): boolean {
-  return a.startsWith('in:') || a.startsWith('fn:') || a in TEMPLATES || a in INSERT;
+function containsVar(n: Node, name: string): boolean {
+  return freeVariables([{ kind: 'expr', expr: n }]).includes(name);
 }
 
-function continuesWithAns(a: string): boolean {
-  if (a === 'tpl:power') return true;
-  const tok = INSERT[a];
-  if (!tok) return false;
-  const kind = TOKENS[tok]?.kind;
-  return (kind === 'binop' && tok !== '∠') || (kind === 'postfix' && tok !== 'dms');
+/** Primfaktoren wie am Original: 2×3×13², nicht zerlegbare Reste in Klammern. */
+export function primeFactors(n: bigint): string {
+  const parts: string[] = [];
+  const sup = (e: number) => (e === 1 ? '' : e === 2 ? '²' : e === 3 ? '³' : `^${e}`);
+  let rest = n;
+  for (let p = 2n; p * p <= rest && p < 1018081n; p += p === 2n ? 1n : 2n) {
+    let e = 0;
+    while (rest % p === 0n) {
+      rest /= p;
+      e++;
+    }
+    if (e > 0) parts.push(`${p}${sup(e)}`);
+  }
+  if (rest > 1n) parts.push(rest >= 1018081n * 1018081n ? `(${rest})` : rest.toString());
+  return parts.join('×') || '1';
 }
 
 function equalsPosition(input: Slot): Cursor {

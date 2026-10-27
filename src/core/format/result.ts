@@ -74,6 +74,7 @@ export function exactForm(v: Value, s: Settings, opts: { linear?: boolean; mixed
     if (digitCount(num) + digitCount(v.q.den) + 1 > MAX_FRACTION_DIGITS) return undefined;
     return { kind: 'pi', num: v.q.num, den: v.q.den };
   }
-  const q = recognizeFraction(v.x);
+  // Nur Ergebnisse der Numerik (∫, d/dx) werden als Bruch erkannt, z. B. −1,125 → −9/8
+  const q = v.numeric ? recognizeFraction(v.x) : undefined;
   return q && fractionForm(q, mixed);
 }

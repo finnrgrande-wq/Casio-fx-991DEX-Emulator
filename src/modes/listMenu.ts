@@ -29,6 +29,13 @@ export class ListMenu implements Screen {
     return this.title ? LINES - 1 : LINES;
   }
 
+  /** Lange Listen (mehr als 9 Einträge) werden mit Auswahlbalken bedient. */
+  private get scrolling(): boolean {
+    return this.items.length > DIGIT_KEYS.length;
+  }
+
+  private cursor = 0;
+
   private get pages(): number {
     return Math.max(1, Math.ceil(this.items.length / this.perPage));
   }
@@ -38,6 +45,18 @@ export class ListMenu implements Screen {
     if (digit >= 0 && digit < this.items.length) {
       this.select(this.items[digit], host);
       return true;
+    }
+    if (this.scrolling) {
+      const n = this.items.length;
+      if (ev.action === 'nav:down' || ev.action === 'nav:up') {
+        this.cursor = (this.cursor + (ev.action === 'nav:down' ? 1 : n - 1)) % n;
+        this.page = Math.floor(this.cursor / this.perPage);
+        return true;
+      }
+      if (ev.action === 'cmd:exe') {
+        this.select(this.items[this.cursor], host);
+        return true;
+      }
     }
     switch (ev.action) {
       case 'nav:down':
@@ -71,7 +90,8 @@ export class ListMenu implements Screen {
     }
     const start = this.page * this.perPage;
     this.items.slice(start, start + this.perPage).forEach((item, k) => {
-      ops.push({ kind: 'text', x: 0, y: y + k * 16, text: `${start + k + 1}:${item.label}`, font: 'L' });
+      const selected = this.scrolling && start + k === this.cursor;
+      ops.push({ kind: 'text', x: 0, y: y + k * 16, text: `${start + k + 1}:${item.label}`, font: 'L', invert: selected });
     });
     if (this.pages > 1) {
       // Bildlaufleiste am rechten Rand
