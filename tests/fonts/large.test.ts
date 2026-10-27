@@ -6,7 +6,8 @@ const REQUIRED =
   'ÄÖÜäöüß' +
   'π√∫ΣΠθ∠×÷−±≈≠≤≥°′″▸▶◀▲▼←→⇔·µσλαγεμρΩΔΦ∞Å‾■□¹²³⁻ⁿ⌟ʳᵍ' +
   '\u{1d465}\u{1d466}' +
-  'ħτ';
+  'ħτ' +
+  '₁₂₃₄';
 
 describe('LARGE_FONT', () => {
   it('hat die erwarteten Kenndaten', () => {

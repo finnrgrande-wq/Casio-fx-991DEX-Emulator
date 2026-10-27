@@ -10,6 +10,7 @@ export const INSERT: Readonly<Record<string, string>> = {
   'in:square': '²', 'in:cube': '³', 'in:inverse': '⁻¹', 'in:factorial': '!', 'in:percent': '%',
   'in:dms': 'dms', 'in:npr': 'nPr', 'in:ncr': 'nCr', 'in:divrem': '÷R', 'in:pi': 'π', 'in:e': 'e',
   'in:ans': 'Ans', 'in:ran': 'Ran#', 'in:i': 'i', 'in:angle': '∠',
+  'in:hex:A': 'hex:A', 'in:hex:B': 'hex:B', 'in:hex:C': 'hex:C', 'in:hex:D': 'hex:D', 'in:hex:E': 'hex:E', 'in:hex:F': 'hex:F',
   'fn:sin': 'sin(', 'fn:cos': 'cos(', 'fn:tan': 'tan(', 'fn:asin': 'sin⁻¹(', 'fn:acos': 'cos⁻¹(', 'fn:atan': 'tan⁻¹(',
   'fn:log': 'log(', 'fn:ln': 'ln(', 'fn:pol': 'Pol(', 'fn:rec': 'Rec(', 'fn:gcd': 'GCD(', 'fn:lcm': 'LCM(',
   'fn:int': 'Int(', 'fn:intg': 'Intg(', 'fn:rnd': 'Rnd(', 'fn:rndfix': 'RndFix(', 'fn:ranint': 'RanInt#(',

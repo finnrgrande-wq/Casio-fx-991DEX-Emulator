@@ -22,6 +22,7 @@ import type { Host, KeyEvent, Screen } from '../screen';
 import { RecallScreen } from './recallScreen';
 import { applyInsertAction, continuesWithAns, isInsertAction } from './input';
 import { CalcPrompt, type PromptOwner } from './calcPrompt';
+import { evalContext } from '../../calculator/context';
 import { SolveScreen } from './solveScreen';
 import { freeVariables } from '../../core/parser/vars';
 import { CONST_CATEGORIES } from '../../data/constants';
@@ -257,14 +258,7 @@ export class CalcScreen implements Screen, PromptOwner {
   // --- Rechnen ---
 
   context(): EvalContext {
-    const st = this.host.state;
-    return {
-      angle: st.settings.angle,
-      format: st.settings.format,
-      getVar: (name) => V.deserialize(st.vars[name as VarName]),
-      ans: V.deserialize(st.ans),
-      random: Math.random,
-    };
+    return evalContext(this.host.state);
   }
 
   /** Wertet die aktuelle Eingabe aus und legt sie im Ablaufspeicher ab. */

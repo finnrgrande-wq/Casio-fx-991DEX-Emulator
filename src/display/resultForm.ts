@@ -11,6 +11,10 @@ export type ResultForm =
   | { kind: 'pi'; num: bigint; den: bigint }
   /** Periodische Dezimalzahl: int,nonRep(rep) mit Überstrich über rep. */
   | { kind: 'recurring'; negative: boolean; int: string; nonRep: string; rep: string }
+  /** Komplexe Zahl a+bi; im ist der Betrag des Imaginärteils (ohne i). */
+  | { kind: 'complex'; re?: ResultForm; im: ResultForm; imNegative: boolean }
+  /** Polarform r∠θ. */
+  | { kind: 'polar'; r: ResultForm; theta: ResultForm }
   /** Freier Text, z. B. „r=2; θ=45“ oder Meldungen. */
   | { kind: 'text'; text: string };
 
@@ -39,6 +43,13 @@ export function formToText(f: ResultForm): string {
     }
     case 'recurring':
       return `${f.negative ? '-' : ''}${f.int},${f.nonRep}(${f.rep})`;
+    case 'complex': {
+      const im = formToText(f.im);
+      const sign = f.imNegative ? '-' : f.re ? '+' : '';
+      return `${f.re ? formToText(f.re) : ''}${sign}${im === '1' ? '' : im}i`;
+    }
+    case 'polar':
+      return `${formToText(f.r)}∠${formToText(f.theta)}`;
     case 'text':
       return f.text;
   }

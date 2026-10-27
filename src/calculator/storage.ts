@@ -32,6 +32,7 @@ export function loadState(store: KeyValueStore | undefined = browserStore()): Pe
       settings: { ...fallback.settings, ...parsed.settings },
       vars: { ...fallback.vars, ...parsed.vars },
       prefs: { ...fallback.prefs, ...parsed.prefs },
+      modeData: { ...fallback.modeData, ...parsed.modeData },
     };
   } catch {
     return fallback;

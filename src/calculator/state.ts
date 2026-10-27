@@ -69,6 +69,8 @@ export interface PersistedState {
   vars: Record<VarName, SerializedValue>;
   ans: SerializedValue;
   prefs: AppPrefs;
+  /** Eigene Daten der Anwendungen (Funktionen, Listen, Matrizen …) als JSON, Schlüssel = Modus oder Thema. */
+  modeData: Record<string, unknown>;
 }
 
 export function defaultState(): PersistedState {
@@ -79,5 +81,6 @@ export function defaultState(): PersistedState {
     vars: Object.fromEntries(VAR_NAMES.map((v) => [v, ZERO_VALUE])) as Record<VarName, SerializedValue>,
     ans: ZERO_VALUE,
     prefs: { ...DEFAULT_PREFS },
+    modeData: {},
   };
 }

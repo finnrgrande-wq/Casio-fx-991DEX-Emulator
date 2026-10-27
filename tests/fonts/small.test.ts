@@ -8,6 +8,7 @@ const MATH_UI = [
   '▸', '▶', '◀', '▲', '▼', '←', '→', '⇔', '·', '²', '³', '⁻', '¹', 'µ', 'σ', 'λ', 'α', 'γ',
   'ε', 'μ', 'ρ', 'Ω', 'Δ', 'Φ', '∞', 'Å', '‾', '∘', '■', '□', 'ⁿ', 'ᵢ', '⌟', 'ħ', 'τ',
   '\u{1D465}', '\u{1D466}', // 𝑥, 𝑦 (kursiv)
+  '₁', '₂', '₃', '₄', // tiefgestellte Ziffern
   'x̄', 'ȳ', // x̄, ȳ
 ];
 
@@ -85,7 +86,7 @@ describe('SMALL_FONT', () => {
   });
 
   it('nur Unterlängen-Zeichen benutzen Zeile 7', () => {
-    const allowed = new Set([...'gjpqy,;_', '\u{1D466}', 'ȳ', 'ᵢ', 'µ', 'μ', 'γ', 'ρ']);
+    const allowed = new Set([...'gjpqy,;_₁₂₃₄', '\u{1D466}', 'ȳ', 'ᵢ', 'µ', 'μ', 'γ', 'ρ']);
     for (const [ch, g] of entries) {
       if (g.rows[7]!.includes('#')) expect(allowed.has(ch), `Zeile 7 bei ${JSON.stringify(ch)}`).toBe(true);
     }

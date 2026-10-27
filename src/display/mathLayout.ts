@@ -459,6 +459,18 @@ export function layoutInput(root: Slot, cursor: Cursor | null, mode: Mode): Laid
 // --- Ergebnisse -------------------------------------------------------------------------------
 
 export function layoutResult(r: ResultForm, mode: Mode): Laid {
+  if (r.kind === 'complex') {
+    const parts: Laid[] = [];
+    const t = (text: string) => layoutResult({ kind: 'text', text }, mode);
+    if (r.re) parts.push(layoutResult(r.re, mode));
+    if (r.imNegative) parts.push(t('-'));
+    else if (r.re) parts.push(t('+'));
+    const one = r.im.kind === 'decimal' && r.im.mantissa === '1' && r.im.exponent === undefined;
+    if (!one) parts.push(layoutResult(r.im, mode));
+    parts.push(t('i'));
+    return joinLaid(parts);
+  }
+  if (r.kind === 'polar') return joinLaid([layoutResult(r.r, mode), layoutResult({ kind: 'text', text: '∠' }, mode), layoutResult(r.theta, mode)]);
   if (r.kind === 'recurring') {
     // Als Eingabebaum mit Perioden-Schablone zeichnen
     const digits = (t: string): Slot => [...t].map((d) => ({ kind: 'tok' as const, tok: d }));
@@ -519,4 +531,17 @@ export function layoutResult(r: ResultForm, mode: Mode): Laid {
     }
   }
   return plain(hb(parts, L));
+}
+
+/** Setzt fertige Boxen nebeneinander, ausgerichtet an der Grundlinie. */
+export function joinLaid(parts: Laid[]): Laid {
+  const ascent = Math.max(...parts.map((p) => p.base));
+  const descent = Math.max(...parts.map((p) => p.h - p.base));
+  const ops: DrawOp[] = [];
+  let x = 0;
+  for (const p of parts) {
+    ops.push(...translate(p, x, ascent - p.base));
+    x += p.w;
+  }
+  return { w: x, h: ascent + descent, base: ascent, ops };
 }

@@ -9,7 +9,7 @@ import { CalcError } from '../errors';
 
 export type Pos = Cursor;
 
-export type BinOp = '+' | '−' | '×' | '÷' | 'imul' | 'nPr' | 'nCr' | '÷R' | '∠';
+export type BinOp = '+' | '−' | '×' | '÷' | 'imul' | 'nPr' | 'nCr' | '÷R' | '∠' | '•';
 export type PostOp = '²' | '³' | '⁻¹' | '!' | '%' | 'deg' | 'rad' | 'gra';
 
 export type Node =
@@ -30,7 +30,7 @@ export type Statement = { kind: 'expr'; expr: Node } | { kind: 'eq'; l: Node; r:
 /** Anzahl der Argumente je Funktion (Bereich). */
 const ARITY: Record<string, [number, number]> = {
   'Pol(': [2, 2], 'Rec(': [2, 2], 'GCD(': [2, 2], 'LCM(': [2, 2], 'RndFix(': [2, 2], 'RanInt#(': [2, 2],
-  'log(': [1, 2],
+  'log(': [1, 2], 'Angle(': [2, 2],
 };
 
 /** Ein Slot als flache Tokenfolge mit Positionen. */
@@ -129,13 +129,23 @@ export class Parser {
   }
 
   private multiplicative(r: SlotReader): Node {
-    let l = this.permutation(r);
+    let l = this.dotProduct(r);
     for (;;) {
       const t = tokOf(r.peek());
       if (t !== '×' && t !== '÷' && t !== '÷R') return l;
       const at = r.next().at;
-      l = { t: 'bin', op: t, l, r: this.permutation(r), at };
+      l = { t: 'bin', op: t, l, r: this.dotProduct(r), at };
     }
+  }
+
+  /** Skalarprodukt (•) bindet schwächer als nPr/nCr, stärker als × und ÷. */
+  private dotProduct(r: SlotReader): Node {
+    let l = this.permutation(r);
+    while (tokOf(r.peek()) === '•') {
+      const at = r.next().at;
+      l = { t: 'bin', op: '•', l, r: this.permutation(r), at };
+    }
+    return l;
   }
 
   private permutation(r: SlotReader): Node {

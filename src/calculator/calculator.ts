@@ -6,7 +6,7 @@ import { emptyScene, type Scene, type StatusFlags } from '../display/scene';
 import { MainMenu } from '../modes/mainMenu';
 import { resetMenu, setupMenu } from '../modes/setup';
 import { PlaceholderScreen } from '../modes/placeholder';
-import { CalcScreen } from '../modes/calc/calcScreen';
+import { SCREENS } from '../modes/factories';
 import type { Host, KeyEvent, Screen } from '../modes/screen';
 import { deserialize, isZero } from '../core/value';
 import { loadState, saveState, type KeyValueStore } from './storage';
@@ -15,9 +15,12 @@ import type { PersistedState } from './state';
 /** Zeitfenster für SHIFT-Doppeltipp (Sperre), falls in den App-Einstellungen aktiviert. */
 const LOCK_WINDOW_MS = 350;
 
+/** Anwendungen, deren Daten beim Verlassen gelöscht werden. */
+const CLEARED_ON_EXIT: readonly ModeId[] = ['stat', 'sheet'];
+
 export type ScreenFactory = (mode: ModeId, host: Host) => Screen;
 
-const defaultFactory: ScreenFactory = (mode, host) => (mode === 'calc' ? new CalcScreen(host) : new PlaceholderScreen(mode));
+const defaultFactory: ScreenFactory = (mode, host) => SCREENS[mode]?.(host) ?? new PlaceholderScreen(mode);
 
 export interface CalculatorOptions {
   store?: KeyValueStore;
@@ -70,6 +73,8 @@ export class Calculator implements Host {
   }
 
   enterMode(mode: ModeId): void {
+    // Statistik- und Tabellenkalkulationsdaten gehen beim Verlassen verloren (wie am Original)
+    if (mode !== this.state.mode && CLEARED_ON_EXIT.includes(this.state.mode)) delete this.state.modeData[this.state.mode];
     this.state.mode = mode;
     this.stack = [this.factory(mode, this)];
     this.persist();
@@ -80,7 +85,7 @@ export class Calculator implements Host {
   }
 
   clearMemory(): void {
-    // Matrizen, Vektoren und Listen kommen mit ihren Anwendungen hinzu
+    this.state.modeData = {};
   }
 
   persist(): void {

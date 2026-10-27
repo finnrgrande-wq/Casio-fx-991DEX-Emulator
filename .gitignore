@@ -1,5 +1,5 @@
 node_modules/
-dist/
+/dist/
 *.log
 .DS_Store
 # Herstellerdokumentation (urheberrechtlich geschützt, nur lokal als Referenz)

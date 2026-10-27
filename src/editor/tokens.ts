@@ -26,7 +26,15 @@ const FUNCS = [
   'sinh(', 'cosh(', 'tanh(', 'sinh⁻¹(', 'cosh⁻¹(', 'tanh⁻¹(',
   'log(', 'ln(', 'Abs(', 'Pol(', 'Rec(', 'GCD(', 'LCM(', 'Int(', 'Intg(',
   'Rnd(', 'RndFix(', 'RanInt#(',
+  'Det(', 'Trn(', 'Identity(', 'Ref(', 'Rref(', 'Angle(', 'UnitV(',
+  // Komplexe Zahlen (OPTN in Anwendung 2)
+  'arg(', 'Conjg(', 'ReP(', 'ImP(',
+  // Basis-N (OPTN in Anwendung 3)
+  'Not(', 'Neg(',
 ] as const;
+
+/** Matrix- und Vektorvariablen. */
+export const TENSOR_VARS = ['MatA', 'MatB', 'MatC', 'MatD', 'MatAns', 'VctA', 'VctB', 'VctC', 'VctD', 'VctAns'] as const;
 
 export const TOKENS: Readonly<Record<string, TokenInfo>> = {
   ...Object.fromEntries('0123456789'.split('').map((d) => [d, T(d, 'digit')])),
@@ -39,6 +47,7 @@ export const TOKENS: Readonly<Record<string, TokenInfo>> = {
   'nCr': T('C', 'binop'),
   '÷R': T('÷R', 'binop'),
   '∠': T('∠', 'binop'),
+  '•': T('·', 'binop'),
   neg: T('-', 'neg'),
   '(': T('(', 'lparen'),
   ')': T(')', 'rparen'),
@@ -63,6 +72,23 @@ export const TOKENS: Readonly<Record<string, TokenInfo>> = {
   i: T('i', 'const'),
   Ans: T('Ans', 'const'),
   'Ran#': T('Ran#', 'const'),
+  ...Object.fromEntries(TENSOR_VARS.map((v) => [v, T(v, 'var')])),
+  // Komplexe Zahlen: Ausgabeformat am Ende des Ausdrucks
+  'conv:▸r∠θ': T('▸r∠θ', 'conv'),
+  'conv:▸a+bi': T('▸a+bi', 'conv'),
+  // Basis-N: Hexadezimalziffern, logische Operatoren, Zahlensystem-Präfixe
+  ...Object.fromEntries('ABCDEF'.split('').map((d) => [`hex:${d}`, T(d, 'digit')])),
+  and: T(' and ', 'binop'),
+  or: T(' or ', 'binop'),
+  xor: T(' xor ', 'binop'),
+  xnor: T(' xnor ', 'binop'),
+  ...Object.fromEntries(['d', 'h', 'b', 'o'].map((p) => [`base:${p}`, T(p, 'const')])),
+  // Vergleichszeichen (Anwendung C „Berechn. prüfen“)
+  '≠': T('≠', 'eq'),
+  '>': T('>', 'eq'),
+  '<': T('<', 'eq'),
+  '≥': T('≥', 'eq'),
+  '≤': T('≤', 'eq'),
   ...Object.fromEntries(PREFIXES.map(([sym]) => [`pfx:${sym}`, T(sym, 'postfix')])),
   // Wissenschaftliche Konstanten (SHIFT 7) und Umrechnungen (SHIFT 8)
   ...Object.fromEntries(CONST_CATEGORIES.flatMap((c) => c.items).map((k) => [`const:${k.symbol}`, T(k.symbol, 'const')])),

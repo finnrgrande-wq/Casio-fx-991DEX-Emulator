@@ -64,7 +64,9 @@ function formText(f: ResultForm): string {
       return f.terms.length > 1 ? `(${terms})/${f.c}` : `${terms}/${f.c}`;
     }
     case 'pi': return `${f.num === 1n ? '' : f.num === -1n ? '-' : f.num}π${f.den === 1n ? '' : '/' + f.den}`;
-    case 'recurring': return formToText(f);
+    case 'recurring':
+    case 'complex':
+    case 'polar': return formToText(f);
     case 'text': return f.text;
   }
 }
