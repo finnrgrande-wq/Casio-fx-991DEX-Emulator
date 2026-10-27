@@ -22,6 +22,10 @@ export interface Host {
   replace(screen: Screen): void;
   /** Wechselt die Anwendung; löscht Ablaufspeicher und Bildschirmstapel. */
   enterMode(mode: ModeId): void;
+  /** Baut den Anwendungsbildschirm neu auf (Ablaufspeicher leer), Menüs darüber bleiben. */
+  resetMode(): void;
+  /** Löscht Speicher der Anwendungen (Matrizen, Vektoren, Listen …). */
+  clearMemory(): void;
   /** Meldet geänderten dauerhaften Zustand (wird gespeichert). */
   persist(): void;
 }

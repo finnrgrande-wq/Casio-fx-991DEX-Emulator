@@ -7,7 +7,7 @@ import { parse } from '../../src/core/parser/parser';
 import * as V from '../../src/core/value';
 import type { Value } from '../../src/core/value';
 import { template, type Item, type Slot, type TemplateType } from '../../src/editor/model';
-import type { ResultForm } from '../../src/display/resultForm';
+import { formToText, type ResultForm } from '../../src/display/resultForm';
 
 /** Baut einen Slot: Strings werden zeichenweise zu Token, außer bekannte Mehrzeichen-Token. */
 const MULTI = ['sin(', 'cos(', 'tan(', 'sin⁻¹(', 'cos⁻¹(', 'tan⁻¹(', 'log(', 'ln(', 'Abs(', 'GCD(', 'LCM(', 'Int(', 'Intg(',
@@ -64,6 +64,7 @@ function formText(f: ResultForm): string {
       return f.terms.length > 1 ? `(${terms})/${f.c}` : `${terms}/${f.c}`;
     }
     case 'pi': return `${f.num === 1n ? '' : f.num === -1n ? '-' : f.num}π${f.den === 1n ? '' : '/' + f.den}`;
+    case 'recurring': return formToText(f);
     case 'text': return f.text;
   }
 }

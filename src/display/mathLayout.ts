@@ -2,7 +2,7 @@
 // Jede Teilformel ist eine Box mit Grundlinie; Schablonen setzen ihre Felder aus Boxen zusammen.
 // Alle Koordinaten sind relativ zur linken oberen Ecke der jeweiligen Box.
 
-import type { Cursor, Item, Slot, Template } from '../editor/model';
+import { template, type Cursor, type Item, type Slot, type Template } from '../editor/model';
 import { TOKENS } from '../editor/tokens';
 import { FONTS, splitGlyphs, textWidth } from './framebuffer';
 import type { ResultForm } from './resultForm';
@@ -459,6 +459,12 @@ export function layoutInput(root: Slot, cursor: Cursor | null, mode: Mode): Laid
 // --- Ergebnisse -------------------------------------------------------------------------------
 
 export function layoutResult(r: ResultForm, mode: Mode): Laid {
+  if (r.kind === 'recurring') {
+    // Als Eingabebaum mit Perioden-Schablone zeichnen
+    const digits = (t: string): Slot => [...t].map((d) => ({ kind: 'tok' as const, tok: d }));
+    const slot: Slot = [...(r.negative ? digits('-').map(() => ({ kind: 'tok' as const, tok: 'neg' })) : []), ...digits(r.int), { kind: 'tok', tok: ',' }, ...digits(r.nonRep), template('recurring', digits(r.rep))];
+    return layoutInput(slot, null, mode);
+  }
   const L = FPS.L;
   const T = (s: string): Box => textBox(s, L);
   const math = mode === 'math';

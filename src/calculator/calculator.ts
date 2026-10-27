@@ -4,6 +4,7 @@
 import { resolveAction, type KeyId, type ModeId, type Modifier } from '../keys/keymap';
 import { emptyScene, type Scene, type StatusFlags } from '../display/scene';
 import { MainMenu } from '../modes/mainMenu';
+import { resetMenu, setupMenu } from '../modes/setup';
 import { PlaceholderScreen } from '../modes/placeholder';
 import { CalcScreen } from '../modes/calc/calcScreen';
 import type { Host, KeyEvent, Screen } from '../modes/screen';
@@ -74,6 +75,14 @@ export class Calculator implements Host {
     this.persist();
   }
 
+  resetMode(): void {
+    this.stack[0] = this.factory(this.mode, this);
+  }
+
+  clearMemory(): void {
+    // Matrizen, Vektoren und Listen kommen mit ihren Anwendungen hinzu
+  }
+
   persist(): void {
     saveState(this.state, this.store);
   }
@@ -122,6 +131,12 @@ export class Calculator implements Host {
     switch (action) {
       case 'sys:menu':
         if (!(this.top instanceof MainMenu)) this.push(new MainMenu(this));
+        return;
+      case 'sys:setup':
+        if (!(this.top instanceof MainMenu)) this.push(setupMenu());
+        return;
+      case 'sys:reset':
+        this.push(resetMenu());
         return;
       case 'sys:off':
         this.powered = false;

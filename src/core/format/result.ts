@@ -5,7 +5,8 @@ import type { Settings } from '../../calculator/state';
 import { Rational, digitCount } from '../exact/rational';
 import { surdDisplayForm } from '../exact/surd';
 import { CalcError } from '../errors';
-import { OverflowError, formatNumber, round15 } from './number';
+import { OverflowError, formatEng, formatNumber, round15 } from './number';
+import { PREFIXES } from '../../editor/tokens';
 import type { Value } from '../value';
 import { toNumber } from '../value';
 
@@ -14,7 +15,14 @@ const MAX_FRACTION_DIGITS = 10;
 
 export function decimalForm(v: Value, s: Settings): ResultForm {
   try {
-    const d = formatNumber(round15(toNumber(v)), s.format, { thousands: s.thousands });
+    const x = round15(toNumber(v));
+    if (s.prefixes && x !== 0) {
+      // Dezimalpräfixe: technische Notation, Exponent als Präfix (999k+25k = 1,024M)
+      const eng = formatEng(x, 0);
+      const prefix = PREFIXES.find(([, e]) => e === eng.exponent);
+      if (prefix) return { kind: 'decimal', mantissa: eng.mantissa + prefix[0] };
+    }
+    const d = formatNumber(x, s.format, { thousands: s.thousands });
     return { kind: 'decimal', mantissa: d.mantissa, exponent: d.exponent };
   } catch (e) {
     if (e instanceof OverflowError) throw new CalcError('math');
@@ -77,4 +85,28 @@ export function exactForm(v: Value, s: Settings, opts: { linear?: boolean; mixed
   // Nur Ergebnisse der Numerik (∫, d/dx) werden als Bruch erkannt, z. B. −1,125 → −9/8
   const q = v.numeric ? recognizeFraction(v.x) : undefined;
   return q && fractionForm(q, mixed);
+}
+
+/** Periodische Dezimaldarstellung einer rationalen Zahl (undefined, wenn sie abbricht oder zu lang ist). */
+export function recurringForm(q: Rational): ResultForm | undefined {
+  if (q.isInteger) return undefined;
+  const negative = q.sign < 0;
+  const num = negative ? -q.num : q.num;
+  // Gemischter Bruch höchstens 10 Stellen (Bedingung der Anleitung)
+  const whole = num / q.den;
+  if (digitCount(whole) + digitCount(num % q.den) + digitCount(q.den) + 2 > MAX_FRACTION_DIGITS) return undefined;
+  const seen = new Map<bigint, number>();
+  let r = num % q.den;
+  let digits = '';
+  while (r !== 0n && !seen.has(r)) {
+    seen.set(r, digits.length);
+    r *= 10n;
+    digits += (r / q.den).toString();
+    r %= q.den;
+    // Datengröße höchstens 99 Byte (Ziffern + Komma + 3 Verwaltungsbytes)
+    if (digits.length + digitCount(whole) + 4 > 99) return undefined;
+  }
+  if (r === 0n) return undefined;
+  const start = seen.get(r)!;
+  return { kind: 'recurring', negative, int: whole.toString(), nonRep: digits.slice(0, start), rep: digits.slice(start) };
 }

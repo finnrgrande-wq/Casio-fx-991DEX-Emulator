@@ -152,8 +152,13 @@ describe('Ausgabeformen', () => {
   it('Brüche: 1/3 + 1/2 = 5/6, S⇔D und gemischt', () => {
     const c = calc('FRAC', 'D1', 'DOWN', 'D3', 'RIGHT', 'ADD', 'FRAC', 'D1', 'DOWN', 'D2', 'EQ');
     expect(result(c)).toBe('5/6');
+    // Period. Darst. ist ab Werk an: Bruch → Periode → Dezimalzahl → Bruch
+    press(c, 'SD');
+    expect(result(c)).toBe('0,8(3)');
     press(c, 'SD');
     expect(result(c)).toBe('0,8333333333');
+    press(c, 'SD');
+    expect(result(c)).toBe('5/6');
     const d = calc('FRAC', 'D1', 'D3', 'DOWN', 'D6', 'EQ', 'SHIFT', 'SD');
     expect(result(d)).toBe('2 1/6');
   });
@@ -163,6 +168,8 @@ describe('Ausgabeformen', () => {
     c.state.settings.io = 'mathDec';
     press(c, 'FRAC', 'D1', 'DOWN', 'D3', 'EQ');
     expect(result(c)).toBe('0,3333333333');
+    press(c, 'SD');
+    expect(result(c)).toBe('0,(3)');
     press(c, 'SD');
     expect(result(c)).toBe('1/3');
   });

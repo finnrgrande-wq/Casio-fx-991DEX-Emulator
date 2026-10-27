@@ -9,6 +9,8 @@ export type ResultForm =
   | { kind: 'surd'; terms: { a: bigint; b: bigint }[]; c: bigint }
   /** num·π / den (den = 1 → kein Bruchstrich). */
   | { kind: 'pi'; num: bigint; den: bigint }
+  /** Periodische Dezimalzahl: int,nonRep(rep) mit Überstrich über rep. */
+  | { kind: 'recurring'; negative: boolean; int: string; nonRep: string; rep: string }
   /** Freier Text, z. B. „r=2; θ=45“ oder Meldungen. */
   | { kind: 'text'; text: string };
 
@@ -35,6 +37,8 @@ export function formToText(f: ResultForm): string {
       const coef = f.num === 1n ? '' : f.num === -1n ? '-' : f.num.toString();
       return `${coef}π${f.den === 1n ? '' : '/' + f.den}`;
     }
+    case 'recurring':
+      return `${f.negative ? '-' : ''}${f.int},${f.nonRep}(${f.rep})`;
     case 'text':
       return f.text;
   }

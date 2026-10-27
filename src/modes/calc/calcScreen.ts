@@ -5,7 +5,7 @@ import { CalcError } from '../../core/errors';
 import { Evaluator, type EvalContext } from '../../core/eval/evaluate';
 import * as T from '../../core/eval/trig';
 import { formatEng } from '../../core/format/number';
-import { decimalForm, exactForm } from '../../core/format/result';
+import { decimalForm, exactForm, recognizeFraction, recurringForm } from '../../core/format/result';
 import { parse, type Node } from '../../core/parser/parser';
 import * as V from '../../core/value';
 import type { Value } from '../../core/value';
@@ -41,7 +41,10 @@ interface Entry {
   decimal: ResultForm;
   /** Sonderausgabe (Pol/Rec, ÷R) statt exakter/dezimaler Form. */
   text?: ResultForm;
-  showExact: boolean;
+  /** Darstellungen, zwischen denen S⇔D wechselt, in Reihenfolge; vi = aktuelle. */
+  views: View[];
+  vi: number;
+  recurring?: ResultForm;
   mixed: boolean;
   eng?: number;
   /** FACT-Ansicht aktiv. */
@@ -51,6 +54,7 @@ interface Entry {
 }
 
 type Phase = 'edit' | 'result' | 'error';
+type View = 'exact' | 'recurring' | 'decimal';
 
 export class CalcScreen implements Screen, PromptOwner {
   readonly editor = new Editor();
@@ -173,8 +177,8 @@ export class CalcScreen implements Screen, PromptOwner {
         if (this.view > 0) this.showHistory(this.view - 1);
         return true;
       case 'cmd:sd':
-        if (entry.exact && !entry.text) {
-          entry.showExact = !entry.showExact;
+        if (!entry.text && entry.views.length > 1) {
+          entry.vi = (entry.vi + 1) % entry.views.length;
           entry.eng = undefined;
         }
         return true;
@@ -185,14 +189,14 @@ export class CalcScreen implements Screen, PromptOwner {
         if (entry.exact?.kind === 'fraction') {
           entry.mixed = !entry.mixed;
           entry.exact = exactForm(entry.value, this.settings, { linear: this.linear, mixed: entry.mixed });
-          entry.showExact = true;
+          entry.vi = Math.max(0, entry.views.indexOf('exact'));
         }
         return true;
       case 'cmd:eng':
       case 'cmd:engLeft':
         if (!entry.text) {
           entry.eng = entry.eng === undefined ? 0 : entry.eng + (a === 'cmd:eng' ? 1 : -1);
-          entry.showExact = false;
+          entry.vi = Math.max(0, entry.views.indexOf('decimal'));
         }
         return true;
     }
@@ -304,9 +308,14 @@ export class CalcScreen implements Screen, PromptOwner {
     const mixed = s.fraction === 'mixed';
     const exact = text ? undefined : exactForm(value, s, { linear: this.linear, mixed });
     const decimal = text ?? decimalForm(value, s);
-    // Math → Math und Lin. → Linear zeigen zuerst die exakte Form
+    // Periodische Darstellung (SETUP „Period. Darst.“) nur in der Math-Ausgabe
+    const q = value.k === 's' ? value.s.toRational() : value.k === 'f' && value.numeric ? recognizeFraction(value.x) : undefined;
+    const recurring = !text && !this.linear && s.recurring && q ? recurringForm(q) : undefined;
+    // Math → Math und Lin. → Linear zeigen zuerst die exakte Form, sonst zuerst die Dezimalzahl
     const exactFirst = (s.io === 'mathMath' || s.io === 'linLin') && !approx;
-    return { input, value, exact, decimal, text, showExact: exactFirst && exact !== undefined, mixed };
+    const order: View[] = exactFirst ? ['exact', 'recurring', 'decimal'] : ['decimal', 'recurring', 'exact'];
+    const views = order.filter((v) => (v === 'exact' ? !!exact : v === 'recurring' ? !!recurring : true));
+    return { input, value, exact, decimal, text, recurring, views, vi: 0, mixed };
   }
 
   /** Pol/Rec (zwei Ergebnisse → x, y) und Division mit Rest auf oberster Ebene. */
@@ -534,7 +543,9 @@ export class CalcScreen implements Screen, PromptOwner {
 
   private formOf(e: Entry): ResultForm {
     if (e.text) return e.text;
-    if (e.showExact && e.exact) return e.exact;
+    const view = e.views[e.vi];
+    if (view === 'exact' && e.exact) return e.exact;
+    if (view === 'recurring' && e.recurring) return e.recurring;
     if (e.eng !== undefined) {
       const d = formatEng(V.toNumber(e.value), e.eng);
       return { kind: 'decimal', mantissa: d.mantissa, exponent: d.exponent };
