@@ -520,6 +520,15 @@ export class CalcScreen implements Screen, PromptOwner {
       }
       if (lay.w <= LCD_WIDTH - 2) this.scrollX = 0;
       ops.push(...translate(lay, -this.scrollX, 0));
+      // Pfeile, wenn die Eingabe links oder rechts über das Display hinausgeht
+      if (this.scrollX > 0) {
+        ops.push({ kind: 'rect', x: 0, y: 0, w: 6, h: 9, fill: true, erase: true });
+        ops.push({ kind: 'text', x: 0, y: 1, text: '◀', font: 'S' });
+      }
+      if (lay.w - this.scrollX > LCD_WIDTH) {
+        ops.push({ kind: 'rect', x: LCD_WIDTH - 6, y: 0, w: 6, h: 9, fill: true, erase: true });
+        ops.push({ kind: 'text', x: LCD_WIDTH - 5, y: 1, text: '▶', font: 'S' });
+      }
       return { ops, status, cursor: c ? { x: c.x - this.scrollX, y: c.y, h: c.h } : null };
     }
 
