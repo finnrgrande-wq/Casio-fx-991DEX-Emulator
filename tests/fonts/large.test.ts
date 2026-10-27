@@ -4,7 +4,7 @@ import { LARGE_FONT } from '../../src/display/fonts/large';
 const REQUIRED =
   [...Array(0x7e - 0x20 + 1)].map((_, i) => String.fromCharCode(0x20 + i)).join('') +
   'ÄÖÜäöüß' +
-  'π√∫ΣΠθ∠×÷−±≈≠≤≥°′″▸▶◀▲▼←→⇔·µσλαγεμρΩΔΦ∞Å‾■□¹²³⁻ⁿ' +
+  'π√∫ΣΠθ∠×÷−±≈≠≤≥°′″▸▶◀▲▼←→⇔·µσλαγεμρΩΔΦ∞Å‾■□¹²³⁻ⁿ⌟ʳᵍ' +
   '\u{1d465}\u{1d466}';
 
 describe('LARGE_FONT', () => {

@@ -5,7 +5,9 @@ import { resolveAction, type KeyId, type ModeId, type Modifier } from '../keys/k
 import { emptyScene, type Scene, type StatusFlags } from '../display/scene';
 import { MainMenu } from '../modes/mainMenu';
 import { PlaceholderScreen } from '../modes/placeholder';
+import { CalcScreen } from '../modes/calc/calcScreen';
 import type { Host, KeyEvent, Screen } from '../modes/screen';
+import { deserialize, isZero } from '../core/value';
 import { loadState, saveState, type KeyValueStore } from './storage';
 import type { PersistedState } from './state';
 
@@ -14,7 +16,7 @@ const LOCK_WINDOW_MS = 350;
 
 export type ScreenFactory = (mode: ModeId, host: Host) => Screen;
 
-const defaultFactory: ScreenFactory = (mode) => new PlaceholderScreen(mode);
+const defaultFactory: ScreenFactory = (mode, host) => (mode === 'calc' ? new CalcScreen(host) : new PlaceholderScreen(mode));
 
 export interface CalculatorOptions {
   store?: KeyValueStore;
@@ -166,7 +168,7 @@ export class Calculator implements Host {
       shift: this.modifier === 'shift',
       alpha: this.modifier === 'alpha',
       sto: scene.status?.sto ?? false,
-      m: this.state.vars.M !== 0,
+      m: !isZero(deserialize(this.state.vars.M)),
       math: s.io === 'mathMath' || s.io === 'mathDec',
       angle: s.angle,
       fix: s.format.kind === 'fix',

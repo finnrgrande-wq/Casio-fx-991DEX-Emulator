@@ -15,6 +15,8 @@ export interface KeyEvent {
 export interface Host {
   readonly state: PersistedState;
   readonly mode: ModeId;
+  /** Oberster Bildschirm des Stapels. */
+  readonly top: Screen;
   push(screen: Screen): void;
   pop(): void;
   replace(screen: Screen): void;

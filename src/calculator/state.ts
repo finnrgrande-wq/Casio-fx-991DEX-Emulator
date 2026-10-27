@@ -2,6 +2,7 @@
 
 import type { ModeId } from '../keys/keymap';
 import type { AngleUnit } from '../display/scene';
+import type { SerializedValue } from '../core/value';
 
 export type IoMode = 'mathMath' | 'mathDec' | 'linLin' | 'linDec';
 export type NumberFormat = { kind: 'norm'; n: 1 | 2 } | { kind: 'fix'; n: number } | { kind: 'sci'; n: number };
@@ -50,6 +51,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
 export type VarName = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'M' | 'x' | 'y';
 export const VAR_NAMES: readonly VarName[] = ['A', 'B', 'C', 'D', 'E', 'F', 'M', 'x', 'y'];
 
+const ZERO_VALUE: SerializedValue = { k: 's', t: [] };
+
 /** Einstellungen der App selbst (nicht Teil des Originals). */
 export interface AppPrefs {
   shiftLock: boolean;
@@ -62,9 +65,9 @@ export interface PersistedState {
   version: 1;
   mode: ModeId;
   settings: Settings;
-  /** Variablenwerte als Zahl; die exakte Darstellung folgt mit dem Rechenkern in M2. */
-  vars: Record<VarName, number>;
-  ans: number;
+  /** Variablen und Ans behalten ihre exakte Darstellung (Bruch, √, π). */
+  vars: Record<VarName, SerializedValue>;
+  ans: SerializedValue;
   prefs: AppPrefs;
 }
 
@@ -73,8 +76,8 @@ export function defaultState(): PersistedState {
     version: 1,
     mode: 'calc',
     settings: structuredClone(DEFAULT_SETTINGS) as Settings,
-    vars: Object.fromEntries(VAR_NAMES.map((v) => [v, 0])) as Record<VarName, number>,
-    ans: 0,
+    vars: Object.fromEntries(VAR_NAMES.map((v) => [v, ZERO_VALUE])) as Record<VarName, SerializedValue>,
+    ans: ZERO_VALUE,
     prefs: { ...DEFAULT_PREFS },
   };
 }

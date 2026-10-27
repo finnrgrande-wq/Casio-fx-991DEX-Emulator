@@ -8,11 +8,11 @@ describe('Speicherung', () => {
     const store = memStore();
     const s = defaultState();
     s.settings.angle = 'R';
-    s.vars.A = 3.5;
+    s.vars.A = { k: 'f', x: 3.5 };
     expect(saveState(s, store)).toBe(true);
     const back = loadState(store);
     expect(back.settings.angle).toBe('R');
-    expect(back.vars.A).toBe(3.5);
+    expect(back.vars.A).toEqual({ k: 'f', x: 3.5 });
   });
 
   it('ignoriert kaputte Daten und fremde Versionen', () => {
@@ -39,6 +39,6 @@ describe('Speicherung', () => {
     expect(s.mode).toBe('stat');
     expect(s.settings.angle).toBe('G');
     expect(s.settings.format).toEqual({ kind: 'norm', n: 1 });
-    expect(s.vars.M).toBe(0);
+    expect(s.vars.M).toEqual({ k: 's', t: [] });
   });
 });

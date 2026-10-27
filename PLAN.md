@@ -390,3 +390,18 @@ beim **Verlassen des Modus** gelöscht. Der Ablaufspeicher wird nie gespeichert.
 über der Punktmatrix. Die Punktmatrix hat 192 × 64 Punkte und zeigt 4 Textzeilen à 17 Zeichen in der großen Schrift.
 Die große Schrift wird aus der Open-Source-Schrift Courier Prime (SIL OFL) gerastert und von Hand nachbearbeitet.
 Die kleine Schrift (Exponenten, Grenzen, Tabellen) zeichne ich selbst.
+
+---
+
+## 5. Am echten Gerät prüfen (offene Annahmen)
+
+| # | Frage | Aktuelle Umsetzung |
+|---|---|---|
+| 1 | Wie sieht das Ergebnis von `5 ÷R 2` aus? | `2;R=1` |
+| 2 | Wortlaut im Fehlerbildschirm unter der Meldung | `[AC] :Abbrechen` / `[◀][▶]:Gehe zu` |
+| 3 | Zeichen der 1000er-Trennung | Apostroph `1'234'567` |
+| 4 | Was passiert bei DEL direkt hinter einem ausgefüllten Bruch/einer Wurzel? | Cursor springt in die Schablone, nichts wird gelöscht |
+| 5 | DEL am Anfang eines Schablonenfeldes | Schablone wird aufgelöst, Inhalt bleibt |
+| 6 | CONV „Winkel“: Bedeutung von `r` in `r▸rad` | volle Umdrehung (1 r = 2π rad) |
+| 7 | `2(−)3` (Vorzeichen direkt nach einer Zahl) | implizite Multiplikation = −6 |
+| 8 | Ab welchem Nenner zeigt das Gerät Gleitkomma-Ergebnisse (z. B. Integrale) noch als Bruch? | Kettenbruch bis Nenner 100000, 15 Stellen genau |
