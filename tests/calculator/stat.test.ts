@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StatScreen } from '../../src/modes/stat/statScreen';
+import { StatPlot } from '../../src/modes/stat/statPlot';
 import type { Calculator } from '../../src/calculator/calculator';
 import type { KeyId } from '../../src/keys/keymap';
 import { memStore, newCalc, press, screen } from '../helpers';
@@ -111,6 +112,45 @@ describe('Statistik: Berechnungen', () => {
     expect(st(c).phase).toBe('error');
     expect(screen(c)[0]).toBe('Mathem. Fehler');
     press(c, 'AC');
+    expect(st(c).phase).toBe('editor');
+  });
+});
+
+describe('Statistik: Diagramm (SHIFT OPTN statt QR-Code)', () => {
+  const plotOps = (c: Calculator) => c.render().scene.ops;
+
+  it('Streudiagramm: öffnet, zeichnet 2×2-Punkte an den erwarteten Pixeln, AC schließt', () => {
+    const c = press(newCalc(), ...MODE, 'D2', ...pairs([1, 2, 3], [2, 4, 6]));
+    press(c, 'SHIFT', 'OPTN');
+    expect(c.top).toBeInstanceOf(StatPlot);
+    const pts = (c.top as StatPlot).points;
+    // x: 0,9..3,1 auf 32..188; y: 1,6..6,4 auf 53..3
+    const px = (x: number) => Math.round(32 + ((x - 0.9) / 2.2) * 156);
+    const py = (y: number) => Math.round(53 - ((y - 1.6) / 4.8) * 50);
+    expect(pts).toEqual([1, 2, 3].map((x, i) => ({ x: px(x), y: py([2, 4, 6][i]) })));
+    const ops = plotOps(c);
+    for (const p of pts) expect(ops).toContainEqual({ kind: 'rect', x: p.x - 1, y: p.y - 1, w: 2, h: 2, fill: true });
+    // Regressionsgerade y = 2x verläuft durch die Punkte (Linien vorhanden)
+    expect(ops.some((o) => o.kind === 'line')).toBe(true);
+    press(c, 'AC');
+    expect(c.top).not.toBeInstanceOf(StatPlot);
+    press(c, 'SHIFT', 'OPTN', 'SHIFT', 'OPTN');
+    expect(c.top).not.toBeInstanceOf(StatPlot);
+  });
+
+  it('1 Variable: Balken je Wert; aus dem Berechnungsbildschirm erreichbar', () => {
+    const c = press(newCalc(), ...MODE, 'D1', ...values(1, 1, 2), 'AC', 'AC');
+    expect(st(c).phase).toBe('calc');
+    press(c, 'SHIFT', 'OPTN');
+    expect(c.top).toBeInstanceOf(StatPlot);
+    const pts = (c.top as StatPlot).points;
+    expect(pts).toHaveLength(2);
+    expect(pts[0].y).toBeLessThan(pts[1].y); // Wert 1 kommt zweimal vor: höherer Balken
+  });
+
+  it('ohne Daten passiert nichts', () => {
+    const c = press(newCalc(), ...MODE, 'D2', 'SHIFT', 'OPTN');
+    expect(c.top).not.toBeInstanceOf(StatPlot);
     expect(st(c).phase).toBe('editor');
   });
 });

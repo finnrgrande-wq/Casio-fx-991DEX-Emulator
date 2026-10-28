@@ -24,6 +24,7 @@ import {
   type StatSet, type StatType,
 } from './data';
 import { asCalcError, evalStatSlot, numValue } from './evaluate';
+import { StatPlot } from './statPlot';
 
 type Phase = 'type' | 'editor' | 'calc' | 'list' | 'reg' | 'error';
 type Cell = Value | null;
@@ -300,6 +301,9 @@ export class StatScreen implements Screen {
       case 'sys:optn':
         host.push(new ListMenu(this.editorMenu()));
         return true;
+      case 'sys:qr':
+        this.openPlot(host);
+        return true;
       case 'sys:ac':
         if (this.input.editing) this.input.cancel();
         else this.phase = 'calc';
@@ -325,6 +329,16 @@ export class StatScreen implements Screen {
         return true;
     }
     return this.input.handle(a);
+  }
+
+  /** Diagramm statt QR-Code; ohne (gültige) Daten passiert nichts. */
+  private openPlot(host: Host): void {
+    try {
+      const set = this.buildSet();
+      if (set.x.length > 0) host.push(new StatPlot(set, this.stat()));
+    } catch {
+      // keine Daten: nichts tun
+    }
   }
 
   private commit(): boolean {
@@ -402,6 +416,9 @@ export class StatScreen implements Screen {
     switch (a) {
       case 'sys:optn':
         host.push(new ListMenu(this.calcMenu()));
+        return true;
+      case 'sys:qr':
+        this.openPlot(host);
         return true;
       case 'sys:ac':
         ed.clear();

@@ -24,6 +24,7 @@ import { applyInsertAction, continuesWithAns, isInsertAction } from './input';
 import { CalcPrompt, type PromptOwner } from './calcPrompt';
 import { evalContext } from '../../calculator/context';
 import { SolveScreen } from './solveScreen';
+import { GraphScreen } from '../table/tableGraph';
 import { freeVariables } from '../../core/parser/vars';
 import { CONST_CATEGORIES } from '../../data/constants';
 import { CONV_CATEGORIES } from '../../data/conversions';
@@ -135,6 +136,9 @@ export class CalcScreen implements Screen, PromptOwner {
         return true;
       case 'sys:optn':
         host.push(new ListMenu(this.optnMenu()));
+        return true;
+      case 'sys:qr':
+        this.showGraph();
         return true;
     }
 
@@ -394,6 +398,33 @@ export class CalcScreen implements Screen, PromptOwner {
     if (at && this.validCursor(at)) this.editor.setCursor(at);
     this.phase = 'edit';
     this.view = 0;
+  }
+
+  /**
+   * QR-Ersatz (SHIFT OPTN): Graph der Eingabe bzw. angezeigten Rechnung als Funktion von x
+   * im Bereich −10 ≤ x ≤ 10. Ohne gültigen Term passiert nichts.
+   */
+  private showGraph(): void {
+    const input = !this.editor.isEmpty ? this.editor.snapshot().root : this.phase === 'result' ? this.shown?.input : undefined;
+    if (!input) return;
+    try {
+      const statements = parse(input);
+      const last = statements[statements.length - 1];
+      const expr = last.kind === 'eq' ? last.r : last.expr;
+      const ev = new Evaluator(this.context());
+      const fn = ev.asFunction(expr, new Map());
+      const safe = (x: number) => {
+        try {
+          return fn(x);
+        } catch {
+          return NaN;
+        }
+      };
+      const xs = Array.from({ length: 21 }, (_, i) => i - 10);
+      this.host.push(new GraphScreen({ xs, curves: [{ fn: safe, ys: xs.map(safe), dotted: false }] }));
+    } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+    }
   }
 
   /** CALC bzw. SOLVE für die aktuelle Eingabe oder die angezeigte Rechnung. */
