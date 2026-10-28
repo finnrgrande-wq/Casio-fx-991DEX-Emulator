@@ -2,6 +2,10 @@
 
 import { CONST_CATEGORIES } from '../data/constants';
 import { CONV_CATEGORIES } from '../data/conversions';
+import { NORMAL_FUNCS, POSTFIX_CMDS, STAT_VARS } from '../modes/stat/data';
+
+/** Anzahl der Zwischenvariablen der Statistik-Auswertung. */
+export const STAT_TEMPS = 10;
 
 export type TokenKind =
   | 'digit' | 'comma' | 'binop' | 'neg' | 'lparen' | 'rparen' | 'sep' | 'colon' | 'eq'
@@ -90,6 +94,11 @@ export const TOKENS: Readonly<Record<string, TokenInfo>> = {
   '≥': T('≥', 'eq'),
   '≤': T('≤', 'eq'),
   ...Object.fromEntries(PREFIXES.map(([sym]) => [`pfx:${sym}`, T(sym, 'postfix')])),
+  // Statistik (Anwendung 6): Variablen, Befehle mit Argument, Normalverteilung und Zwischenvariablen
+  ...Object.fromEntries(STAT_VARS.map((e) => [`stat:${e.id}`, T(e.text, 'var')])),
+  ...Object.fromEntries(POSTFIX_CMDS.map((e) => [`stat:${e.id}`, T(e.text, 'postfix')])),
+  ...Object.fromEntries(NORMAL_FUNCS.map((e) => [`stat:${e.id}`, T(e.text, 'func')])),
+  ...Object.fromEntries([...Array(STAT_TEMPS)].map((_, i) => [`stat:#${i}`, T('▫', 'var')])),
   // Wissenschaftliche Konstanten (SHIFT 7) und Umrechnungen (SHIFT 8)
   ...Object.fromEntries(CONST_CATEGORIES.flatMap((c) => c.items).map((k) => [`const:${k.symbol}`, T(k.symbol, 'const')])),
   ...Object.fromEntries(CONV_CATEGORIES.flatMap((c) => c.items).map((k) => [`conv:${k.label}`, T(k.label, 'conv')])),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LARGE_FONT } from '../../src/display/fonts/large';
+import { splitGlyphs } from '../../src/display/framebuffer';
 
 const REQUIRED =
   [...Array(0x7e - 0x20 + 1)].map((_, i) => String.fromCharCode(0x20 + i)).join('') +
@@ -7,7 +8,8 @@ const REQUIRED =
   'π√∫ΣΠθ∠×÷−±≈≠≤≥°′″▸▶◀▲▼←→⇔·µσλαγεμρΩΔΦ∞Å‾■□¹²³⁻ⁿ⌟ʳᵍ' +
   '\u{1d465}\u{1d466}' +
   'ħτ' +
-  '₁₂₃₄';
+  '₁₂₃₄' +
+  'x̄ȳx̂ŷ⁴';
 
 describe('LARGE_FONT', () => {
   it('hat die erwarteten Kenndaten', () => {
@@ -18,7 +20,7 @@ describe('LARGE_FONT', () => {
   });
 
   it('enthält alle benötigten Zeichen', () => {
-    const missing = [...REQUIRED].filter((ch) => !(ch in LARGE_FONT.glyphs));
+    const missing = splitGlyphs(REQUIRED).filter((ch) => !(ch in LARGE_FONT.glyphs));
     expect(missing).toEqual([]);
   });
 
@@ -41,7 +43,7 @@ describe('LARGE_FONT', () => {
 
   it('das Leerzeichen ist leer, sichtbare Zeichen haben Punkte', () => {
     expect(LARGE_FONT.glyphs[' '].rows.join('')).not.toContain('#');
-    for (const ch of REQUIRED) {
+    for (const ch of splitGlyphs(REQUIRED)) {
       if (ch === ' ') continue;
       expect(LARGE_FONT.glyphs[ch].rows.join(''), ch).toContain('#');
     }

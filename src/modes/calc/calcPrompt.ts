@@ -20,6 +20,10 @@ export interface PromptOwner {
   context(): EvalContext;
   /** Rückkehr in die Eingabe; optional mit Cursor an einer Fehlerstelle. */
   resume(input: Slot, at?: Cursor): void;
+  /** Optional (Komplexe Zahlen): eigene Anzeige, Übernahme und Auswertung statt der reellen. */
+  promptValue?(name: string): string;
+  promptCommit?(name: string, term: Slot): void;
+  promptCompute?(statements: Statement[]): { exact?: ResultForm; decimal: ResultForm; showExact: boolean };
 }
 
 type Phase = 'prompt' | 'result' | 'error';
@@ -28,7 +32,7 @@ export class CalcPrompt implements Screen {
   private phase: Phase = 'prompt';
   private index = 0;
   private readonly input = new ValueInput();
-  private result: { value: Value; exact?: ResultForm; decimal: ResultForm; showExact: boolean } | undefined;
+  private result: { exact?: ResultForm; decimal: ResultForm; showExact: boolean } | undefined;
   private error: CalcError | undefined;
   /** Fehler in der Werteingabe (statt im Term) führen zurück zur Abfrage. */
   private errorInPrompt = false;
@@ -81,6 +85,14 @@ export class CalcPrompt implements Screen {
   /** Übernimmt eine laufende Eingabe in die aktuelle Variable. */
   private commit(): boolean {
     try {
+      if (this.owner.promptCommit) {
+        const term = this.input.commitSlot();
+        if (term) {
+          this.owner.promptCommit(this.vars[this.index], term);
+          this.host.persist();
+        }
+        return true;
+      }
       const v = this.input.commit(this.owner.context());
       if (v) {
         this.host.state.vars[this.vars[this.index] as VarName] = V.serialize(v);
@@ -105,6 +117,12 @@ export class CalcPrompt implements Screen {
   private compute(): void {
     const st = this.host.state;
     try {
+      if (this.owner.promptCompute) {
+        this.result = this.owner.promptCompute(this.statements);
+        this.host.persist();
+        this.phase = 'result';
+        return;
+      }
       const ev = new Evaluator(this.owner.context());
       let value: Value = V.ZERO;
       for (const s of this.statements) {
@@ -117,7 +135,7 @@ export class CalcPrompt implements Screen {
       st.ans = V.serialize(value);
       this.host.persist();
       const exact = exactForm(value, st.settings);
-      this.result = { value, exact, decimal: decimalForm(value, st.settings), showExact: st.settings.io === 'mathMath' && !!exact };
+      this.result = { exact, decimal: decimalForm(value, st.settings), showExact: st.settings.io === 'mathMath' && !!exact };
       this.phase = 'result';
     } catch (e) {
       if (!(e instanceof CalcError)) throw e;
@@ -144,7 +162,7 @@ export class CalcPrompt implements Screen {
       return { ops };
     }
     const name = this.vars[this.index];
-    const line = variableLine(name, this.value(name), this.input, LCD_HEIGHT - 16);
+    const line = variableLine(name, this.owner.promptValue ? this.owner.promptValue(name) : this.value(name), this.input, LCD_HEIGHT - 16);
     // Platz für die Abfragezeile freihalten
     ops.push({ kind: 'rect', x: 0, y: LCD_HEIGHT - 16, w: LCD_WIDTH, h: 16, fill: true, erase: true });
     return {

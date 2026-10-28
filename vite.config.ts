@@ -11,7 +11,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      includeAssets: ['icons/favicon-32.png', 'icons/apple-touch-icon-180.png'],
       manifest: {
         name: 'ClassCalc',
         short_name: 'ClassCalc',

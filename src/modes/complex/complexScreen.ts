@@ -3,11 +3,12 @@
 
 import { CalcError } from '../../core/errors';
 import { decimalForm, exactForm } from '../../core/format/result';
-import { parse } from '../../core/parser/parser';
+import { parse, type Statement } from '../../core/parser/parser';
+import { freeVariables } from '../../core/parser/vars';
 import * as V from '../../core/value';
 import type { SerializedValue } from '../../core/value';
 import { layoutInput, layoutResult, translate } from '../../display/mathLayout';
-import type { ResultForm } from '../../display/resultForm';
+import { formToText, type ResultForm } from '../../display/resultForm';
 import type { DrawOp, Scene } from '../../display/scene';
 import { LCD_HEIGHT, LCD_WIDTH } from '../../display/types';
 import { Editor, type Cursor, type Slot } from '../../editor/model';
@@ -18,6 +19,7 @@ import { ListMenu, type MenuItem } from '../listMenu';
 import type { Host, KeyEvent, Screen } from '../screen';
 import { applyInsertAction, continuesWithAns, isInsertAction } from '../calc/input';
 import { RecallScreen } from '../calc/recallScreen';
+import { CalcPrompt, type PromptOwner } from '../calc/calcPrompt';
 import { cabs, carg, cadd, csub, ComplexEvaluator, isReal, real, type C, type CContext } from './complexEval';
 
 const STO_KEYS: Partial<Record<KeyId, VarName>> = {
@@ -47,7 +49,7 @@ interface Store {
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
-export class ComplexScreen implements Screen {
+export class ComplexScreen implements Screen, PromptOwner {
   readonly editor = new Editor();
   private phase: Phase = 'edit';
   private history: Entry[] = [];
@@ -137,6 +139,11 @@ export class ComplexScreen implements Screen {
       case 'cmd:mminus':
         this.memory(a === 'cmd:mplus' ? 1 : -1);
         return true;
+      case 'cmd:calc':
+        this.startPrompt();
+        return true;
+      case 'cmd:solve':
+        return true; // SOLVE gibt es nur in Berechnungen
       case 'sys:optn':
         host.push(new ListMenu(this.optnMenu(), { paged: true }));
         return true;
@@ -339,6 +346,74 @@ export class ComplexScreen implements Screen {
       fn('Argument', 'arg('), fn('Konjugierte', 'Conjg('), fn('Realteil', 'ReP('), fn('Imaginärteil', 'ImP('),
       fn('▸r∠θ', 'conv:▸r∠θ'), fn('▸a+bi', 'conv:▸a+bi'),
     ];
+  }
+
+  // --- CALC ---
+
+  private startPrompt(): void {
+    const input = !this.editor.isEmpty ? this.editor.snapshot().root : this.phase === 'result' ? this.shown?.input : undefined;
+    if (!input) return;
+    try {
+      const statements = parse(input);
+      let vars = freeVariables(statements);
+      // Bei „y=…“ wird die linke Variable berechnet, nicht abgefragt
+      const first = statements[0];
+      if (first.kind === 'eq' && first.l.t === 'var') {
+        const target = first.l.name;
+        if (!statements.some((s) => freeVariables([{ kind: 'expr', expr: s.kind === 'eq' ? s.r : s.expr } as Statement]).includes(target))) {
+          vars = vars.filter((v) => v !== target);
+        }
+      }
+      this.editor.load(input);
+      if (vars.length === 0 && !statements.some((s) => s.kind === 'eq')) {
+        this.execute({});
+        return;
+      }
+      this.host.push(new CalcPrompt(this.host, this, input, statements, vars));
+    } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+      this.editor.load(input);
+      this.error = e;
+      this.phase = 'error';
+    }
+  }
+
+  resume(input: Slot, at?: Cursor): void {
+    this.editor.load(input);
+    if (at && this.validCursor(at)) this.editor.setCursor(at);
+    this.phase = 'edit';
+    this.view = 0;
+  }
+
+  promptValue(name: string): string {
+    const z = this.getC(name);
+    return formToText(this.formOf({ input: [], value: z, views: ['decimal'], vi: 0 }));
+  }
+
+  promptCommit(name: string, term: Slot): void {
+    const [st, ...rest] = parse(term);
+    if (rest.length > 0 || st.kind !== 'expr') throw new CalcError('syntax');
+    this.setVar(name as VarName, new ComplexEvaluator(this.context()).eval(st.expr));
+  }
+
+  promptCompute(statements: Statement[]): { exact?: ResultForm; decimal: ResultForm; showExact: boolean } {
+    const ev = new ComplexEvaluator(this.context());
+    let value: C = real(V.ZERO);
+    for (const s of statements) {
+      if (s.kind === 'eq') {
+        if (s.l.t !== 'var') throw new CalcError('syntax', s.l.at);
+        value = ev.eval(s.r);
+        this.setVar(s.l.name as VarName, value);
+      } else value = ev.eval(s.expr);
+    }
+    const st = this.host.state;
+    st.ans = V.serialize(value.re);
+    this.store.ans = isReal(value) ? undefined : { re: V.serialize(value.re), im: V.serialize(value.im) };
+    const entry: Entry = { input: [], value, views: ['decimal'], vi: 0 };
+    const decimal = this.formOf(entry);
+    if (!this.hasExact(entry)) return { decimal, showExact: false };
+    entry.views = ['exact'];
+    return { exact: this.formOf(entry), decimal, showExact: this.settings.io === 'mathMath' || this.settings.io === 'linLin' };
   }
 
   // --- Anzeige ---

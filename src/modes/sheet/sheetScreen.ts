@@ -15,7 +15,9 @@ import { applyInsertAction, isInsertAction } from '../calc/input';
 import { RecallScreen } from '../calc/recallScreen';
 import { errorScene, shortValue } from '../calc/prompt';
 import type { Host, KeyEvent, Screen } from '../screen';
-import { COLS, ROWS, CAPACITY, SheetModel, colOf, idxOf, parseRange, refName, rowOf, shiftSlot, type Cell, type SheetJson } from './model';
+import { COLS, ROWS, CAPACITY, SheetModel, colOf, idxOf, parseRange, refItems, refName, rowOf, shiftSlot, toRef, type Cell, type SheetJson } from './model';
+
+type Pick = { cur: number };
 
 type Phase = 'grid' | 'dialog' | 'message' | 'error';
 
@@ -57,6 +59,8 @@ export class SheetScreen implements Screen {
   private error: CalcError | undefined;
   private stoPending = false;
   private scrollX = 0;
+  /** Zell-Auswahl beim Bearbeiten einer Formel. */
+  private pick: Pick | undefined;
 
   constructor(private readonly host: Host) {
     this.model = new SheetModel(
@@ -86,6 +90,7 @@ export class SheetScreen implements Screen {
       }
       return true;
     }
+    if (this.pick && this.phase === 'grid') return this.handlePick(ev.action);
     if (this.phase === 'error') {
       if (a === 'sys:ac' || a === 'cmd:exe') this.phase = this.dialog ? 'dialog' : 'grid';
       return true;
@@ -146,6 +151,25 @@ export class SheetScreen implements Screen {
     return true;
   }
 
+  /** Zell-Auswahl: Pfeiltasten bewegen die Markierung, = fügt den Bezug ein, AC bricht ab. */
+  private handlePick(a: string | undefined): boolean {
+    const p = this.pick!;
+    const step: Record<string, [number, number]> = { 'nav:left': [-1, 0], 'nav:right': [1, 0], 'nav:up': [0, -1], 'nav:down': [0, 1] };
+    if (a && step[a]) {
+      const [dc, dr] = step[a];
+      p.cur = idxOf(Math.min(COLS - 1, Math.max(0, colOf(p.cur) + dc)), Math.min(ROWS, Math.max(1, rowOf(p.cur) + dr)));
+      this.scroll(p.cur);
+    } else if (a === 'cmd:exe') {
+      for (const it of refItems(toRef(p.cur))) if (it.kind === 'tok') this.ed.insertToken(it.tok);
+      this.pick = undefined;
+      this.scroll(this.cur);
+    } else if (a === 'sys:ac') {
+      this.pick = undefined;
+      this.scroll(this.cur);
+    }
+    return true;
+  }
+
   private stopEdit(): void {
     this.editing = false;
     this.ed.clear();
@@ -155,12 +179,12 @@ export class SheetScreen implements Screen {
     const c = Math.min(COLS - 1, Math.max(0, colOf(this.cur) + dc));
     const r = Math.min(ROWS, Math.max(1, rowOf(this.cur) + dr));
     this.cur = idxOf(c, r);
-    this.scroll();
+    this.scroll(this.cur);
   }
 
-  private scroll(): void {
-    const c = colOf(this.cur);
-    const r = rowOf(this.cur);
+  private scroll(idx: number): void {
+    const c = colOf(idx);
+    const r = rowOf(idx);
     if (r < this.topRow) this.topRow = r;
     if (r >= this.topRow + VISIBLE_ROWS) this.topRow = r - VISIBLE_ROWS + 1;
     if (c < this.leftCol) this.leftCol = c;
@@ -239,6 +263,17 @@ export class SheetScreen implements Screen {
         { label: 'Mittelwert', run: put('Mean(') },
         { label: 'Summe', run: put('Sum(') },
         { label: '$', run: put('$') },
+        ...(this.dialog
+          ? []
+          : [
+              {
+                label: 'Zell-Auswahl',
+                run: (h: Host) => {
+                  closeMenus(h);
+                  this.pick = { cur: this.cur };
+                },
+              },
+            ]),
       ],
       { paged: true },
     );
@@ -272,24 +307,55 @@ export class SheetScreen implements Screen {
     this.target().insertToken(t);
   }
 
-  /** RECALL: Wert der Variablen als Zahl einfügen. */
+  /** RECALL: Wert der Variablen einfügen; exakte Werte (Bruch, Wurzel, π) bleiben exakt. */
   private insertVariable(name: VarName): void {
-    const text = shortValue(V.deserialize(this.host.state.vars[name]));
-    const [mant, exp] = text.split('×10^');
-    const put = (s: string, ed: Editor) => {
-      for (const ch of s) ed.insertToken(ch === '-' ? 'neg' : ch);
-    };
+    const v = V.deserialize(this.host.state.vars[name]);
     if (!this.dialog && !this.editing) {
       this.ed.clear();
       this.editing = true;
     }
     const ed = this.target();
-    put(mant, ed);
-    if (exp !== undefined) {
-      ed.insertTemplate('e10');
-      put(exp, ed);
-      ed.moveRight();
+    const put = (s: string) => {
+      for (const ch of s) ed.insertToken(ch === '-' ? 'neg' : ch);
+    };
+    if (v.k === 'f') {
+      const [mant, exp] = shortValue(v).split('×10^');
+      put(mant);
+      if (exp !== undefined) {
+        ed.insertTemplate('e10');
+        put(exp);
+        ed.moveRight();
+      }
+      return;
     }
+    // Terme: [negativ, Zähler, Nenner, Radikand bzw. 'π']
+    const abs = (n: bigint) => (n < 0n ? -n : n);
+    const terms: [boolean, bigint, bigint, string][] =
+      v.k === 'pi'
+        ? v.q.isZero ? [] : [[v.q.num < 0n, abs(v.q.num), v.q.den, 'π']]
+        : v.s.terms.map((t) => [t.coef.num < 0n, abs(t.coef.num), t.coef.den, t.rad.toString()]);
+    if (terms.length === 0) return put('0');
+    const wrap = terms.length > 1 || terms[0][2] !== 1n;
+    if (wrap) ed.insertToken('(');
+    terms.forEach(([negative, n, d, r], k) => {
+      if (k === 0) {
+        if (negative) ed.insertToken('neg');
+      } else ed.insertToken(negative ? '−' : '+');
+      const root = r !== '1';
+      if (!(n === 1n && d === 1n && root)) {
+        if (d !== 1n && root) ed.insertToken('(');
+        for (const ch of d === 1n ? `${n}` : `${n}÷${d}`) ed.insertToken(ch);
+        if (d !== 1n && root) ed.insertToken(')');
+        if (root) ed.insertToken('×');
+      }
+      if (r === 'π') ed.insertToken('π');
+      else if (root) {
+        ed.insertTemplate('sqrt');
+        put(r);
+        ed.moveRight();
+      }
+    });
+    if (wrap) ed.insertToken(')');
   }
 
   // --- Dialog Formel/Wert füllen ---
@@ -405,7 +471,7 @@ export class SheetScreen implements Screen {
         const c = this.leftCol + j;
         const idx = idxOf(c, r);
         const x = NUM_W + j * CELL_W;
-        const active = idx === this.cur;
+        const active = idx === (this.pick ? this.pick.cur : this.cur);
         const res = this.model.result(idx);
         const text = res ? ('err' in res ? 'ERROR' : clip(shortValue(res.v), 7)) : '';
         if (active) ops.push({ kind: 'rect', x, y, w: CELL_W - 1, h: ROW_H, fill: true });

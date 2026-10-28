@@ -452,8 +452,9 @@ const plain = (b: Box): Laid => {
 };
 
 /** Eingabezeile (Wurzelfeld) mit Cursor (oder null) in natürlicher oder linearer Darstellung. */
-export function layoutInput(root: Slot, cursor: Cursor | null, mode: Mode): Laid {
-  return plain(slotBox(root, FPS.L, 0, { mode }, cursor));
+/** small: SETUP „Mehrzeilengröße: Kleine Schrift“ (nur Lin.-Eingabe). */
+export function layoutInput(root: Slot, cursor: Cursor | null, mode: Mode, small = false): Laid {
+  return plain(slotBox(root, small && mode === 'linear' ? FPS.S : FPS.L, 0, { mode }, cursor));
 }
 
 // --- Ergebnisse -------------------------------------------------------------------------------

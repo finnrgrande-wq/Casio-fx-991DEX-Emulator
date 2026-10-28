@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ComplexScreen } from '../../src/modes/complex/complexScreen';
+import type { CalcPrompt } from '../../src/modes/calc/calcPrompt';
 import { formToText } from '../../src/display/resultForm';
 import type { Calculator } from '../../src/calculator/calculator';
 import type { KeyId } from '../../src/keys/keymap';
@@ -95,5 +96,45 @@ describe('Ablaufspeicher, Ans, STO, Fehler', () => {
   it('√ einer komplexen Zahl und Division durch 0 sind Fehler', () => {
     expect(scr(calc('SQRT', ...I, 'EQ')).currentError).toBeDefined();
     expect(scr(calc('D1', 'DIV', 'D0', 'EQ')).currentError).toBeDefined();
+  });
+});
+
+describe('CALC in Komplexe Zahlen', () => {
+  const A: KeyId[] = ['ALPHA', 'NEG'];
+  const B: KeyId[] = ['ALPHA', 'DMS'];
+  const out = (c: Calculator) => {
+    const r = (c.top as unknown as CalcPrompt).state.result;
+    return r && formToText(r);
+  };
+
+  it('3A+B mit A=5, B=10 → 25 (Anleitung)', () => {
+    const c = calc('D3', ...A, 'ADD', ...B, 'CALC');
+    expect((c.top as unknown as CalcPrompt).state.variable).toBe('A');
+    press(c, 'D5', 'EQ', 'D1', 'D0', 'EQ');
+    expect(out(c)).toBe('25');
+  });
+
+  it('A+Bi mit A=1, B=2 → 1+2i; CALC startet neu, AC zurück zur Eingabe', () => {
+    const c = calc(...A, 'ADD', ...B, ...I, 'CALC');
+    press(c, 'D1', 'EQ', 'D2', 'EQ');
+    expect(out(c)).toBe('1+2i');
+    press(c, 'CALC');
+    expect((c.top as unknown as CalcPrompt).state.variable).toBe('A');
+    press(c, 'AC');
+    expect(c.top).toBeInstanceOf(ComplexScreen);
+  });
+
+  it('(x+i)² mit x=1 → 2i, auch komplexer Wert x=2+3i', () => {
+    const c = calc('LPAREN', 'X', 'ADD', ...I, 'RPAREN', 'SQUARE', 'CALC');
+    press(c, 'D1', 'EQ');
+    expect(out(c)).toBe('2i');
+    press(c, 'CALC', 'D2', 'ADD', 'D3', ...I, 'EQ');
+    // (2+4i)² = −12+16i
+    expect(out(c)).toBe('-12+16i');
+  });
+
+  it('SHIFT CALC (SOLVE) tut in Komplexe Zahlen nichts', () => {
+    const c = calc('X', 'ADD', 'D1', 'SHIFT', 'CALC');
+    expect(c.top).toBeInstanceOf(ComplexScreen);
   });
 });

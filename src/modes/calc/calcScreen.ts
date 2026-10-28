@@ -512,7 +512,7 @@ export class CalcScreen implements Screen, PromptOwner {
     };
 
     if (this.phase === 'edit') {
-      const lay = layoutInput(this.editor.root, this.editor.cursor, mode);
+      const lay = layoutInput(this.editor.root, this.editor.cursor, mode, this.settings.smallFont);
       const c = lay.cursor;
       if (c) {
         if (c.x - this.scrollX > LCD_WIDTH - 3) this.scrollX = c.x - (LCD_WIDTH - 3);
@@ -533,7 +533,7 @@ export class CalcScreen implements Screen, PromptOwner {
     }
 
     const entry = this.shown!;
-    const inLay = layoutInput(entry.input, null, mode);
+    const inLay = layoutInput(entry.input, null, mode, this.settings.smallFont);
     ops.push(...translate(inLay, 0, 0));
     if (entry.suffix) ops.push({ kind: 'text', x: Math.min(inLay.w, LCD_WIDTH - 33), y: inLay.base - 12, text: entry.suffix, font: 'L' });
     const form = this.formOf(entry);

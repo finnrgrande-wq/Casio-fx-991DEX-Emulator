@@ -74,6 +74,16 @@ const OVERRIDES = {
     return a;
   },
   'μ': (get) => get('µ'), // Griechisches my = Mikro-Zeichen
+  // Statistik: Querstrich (x̄ ȳ), Dach (x̂ ŷ) und hochgestellte 4
+  'x̄': (get) => { const a = get('x').slice(); a[3] = '..#######..'; return a; },
+  'ȳ': (get) => { const a = get('y').slice(); a[3] = '..#######..'; return a; },
+  'x̂': (get) => { const a = get('x').slice(); a[2] = '.....#.....'; a[3] = '....#.#....'; return a; },
+  'ŷ': (get) => { const a = get('y').slice(); a[2] = '.....#.....'; a[3] = '....#.#....'; return a; },
+  '⁴': (get) => {
+    const a = get('³').slice();
+    ['....##.....', '...#.#.....', '..#..#.....', '..#####....', '.....#.....', '.....#.....', '.....#.....'].forEach((r, i) => { a[2 + i] = r; });
+    return a;
+  },
   'π': at(5, [
     '.#########.',
     '..#....#...',

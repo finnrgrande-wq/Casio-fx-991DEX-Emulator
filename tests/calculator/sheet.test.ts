@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SheetScreen } from '../../src/modes/sheet/sheetScreen';
 import type { Calculator } from '../../src/calculator/calculator';
-import { deserialize, toNumber } from '../../src/core/value';
+import { deserialize, div, int, serialize, sqrt, toNumber } from '../../src/core/value';
 import type { KeyId } from '../../src/keys/keymap';
 import { newCalc, press, screen } from '../helpers';
 
@@ -230,6 +230,39 @@ describe('Tabellenkalkulation (Anleitung S. 41–45)', () => {
     at(c, 'A5');
     go(c, 'SHIFT', 'STO', 'DMS', 'ADD', 'D1', 'EQ');
     expect(val(c, 'A5')).toBe('36');
+  });
+
+  it('Zell-Auswahl (OPTN) fügt Zellenbezug ein: =A2+7 in B2 (Bsp. 2)', () => {
+    const c = manual();
+    at(c, 'B2');
+    put(c, '');
+    at(c, 'B2');
+    go(c, ...typ('='), 'OPTN', 'DOWN', 'D2', 'LEFT', 'EQ');
+    expect(sheet(c).currentPhase).toBe('grid');
+    go(c, ...typ('+7'), 'EQ');
+    expect(txt(c, 'B2')).toBe('=A2+7');
+    expect(val(c, 'B2')).toBe('49');
+  });
+
+  it('Zell-Auswahl: AC bricht ab, Cursor der Zelle bleibt', () => {
+    const c = fresh();
+    go(c, ...typ('=1+'), 'OPTN', 'DOWN', 'D2', 'DOWN', 'DOWN', 'AC');
+    go(c, 'D2', 'EQ');
+    expect(txt(c, 'A1')).toBe('=1+2');
+  });
+
+  it('RECALL fügt exakte Werte ein (Bruch, Wurzel)', () => {
+    const c = fresh();
+    c.state.vars.B = serialize(div(int(1), int(3)));
+    c.state.vars.C = serialize(sqrt(int(8)));
+    go(c, 'SHIFT', 'STO', 'DMS', 'MUL', 'D3', 'EQ');
+    expect(val(c, 'A1')).toBe('1');
+    expect(txt(c, 'A1')).toBe('(1÷3)×3');
+    at(c, 'A2');
+    go(c, 'SHIFT', 'STO', 'INV', 'EQ');
+    expect(txt(c, 'A2')).toBe('2×▫'); // 2×√2 mit Wurzelschablone
+    const r = sheet(c).model.result(5);
+    expect(r && 'v' in r && r.v.k === 's' && r.v.s.terms.length === 1 && r.v.s.terms[0].rad === 2n).toBe(true);
   });
 
   it('Speicherfehler bei Überschreiten von 1700 Bytes', () => {

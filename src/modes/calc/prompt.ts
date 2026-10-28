@@ -8,7 +8,7 @@ import type { Value } from '../../core/value';
 import { layoutInput, type Laid } from '../../display/mathLayout';
 import type { DrawOp, Scene } from '../../display/scene';
 import { DEFAULT_SETTINGS } from '../../calculator/state';
-import { Editor } from '../../editor/model';
+import { Editor, type Slot } from '../../editor/model';
 import { applyInsertAction, isInsertAction } from './input';
 
 /** Anzeigename einer Variablen (x und y kursiv). */
@@ -54,6 +54,13 @@ export class ValueInput {
     return new Evaluator(ctx).eval(st.expr);
   }
 
+  /** Wie commit, liefert aber nur den Term (die Auswertung übernimmt z. B. der Komplex-Modus). */
+  commitSlot(): Slot | undefined {
+    if (!this.editing) return undefined;
+    this.editing = false;
+    return this.editor.isEmpty ? undefined : this.editor.snapshot().root;
+  }
+
   cancel(): void {
     this.editing = false;
   }
@@ -66,7 +73,7 @@ export class ValueInput {
 /** Zeile „Name =Wert“ bzw. mit laufender Eingabe; liefert Ops und Cursor. */
 export function variableLine(
   name: string,
-  value: Value,
+  value: Value | string,
   input: ValueInput | undefined,
   y: number,
   highlight = false,
@@ -83,7 +90,7 @@ export function variableLine(
     const c = lay.cursor;
     return { ops, cursor: c ? { x: c.x + x0 - shift, y: c.y + y, h: c.h } : null };
   }
-  ops.push({ kind: 'text', x: x0, y, text: shortValue(value), font: 'L', invert: highlight });
+  ops.push({ kind: 'text', x: x0, y, text: typeof value === 'string' ? value : shortValue(value), font: 'L', invert: highlight });
   return { ops, cursor: null };
 }
 

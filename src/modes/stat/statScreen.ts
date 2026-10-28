@@ -23,9 +23,7 @@ import {
   LIST_ONE, LIST_QUAD, LIST_TWO, MAX_ROWS, TYPES, VAR_BY_ID, StatCalc, isPaired, regIds, typeLabel,
   type StatSet, type StatType,
 } from './data';
-import { asCalcError, evalStatSlot, numValue, registerStatTokens } from './evaluate';
-
-registerStatTokens();
+import { asCalcError, evalStatSlot, numValue } from './evaluate';
 
 type Phase = 'type' | 'editor' | 'calc' | 'list' | 'reg' | 'error';
 type Cell = Value | null;
