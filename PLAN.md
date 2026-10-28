@@ -405,3 +405,10 @@ Die kleine Schrift (Exponenten, Grenzen, Tabellen) zeichne ich selbst.
 | 6 | CONV „Winkel“: Bedeutung von `r` in `r▸rad` | volle Umdrehung (1 r = 2π rad) |
 | 7 | `2(−)3` (Vorzeichen direkt nach einer Zahl) | implizite Multiplikation = −6 |
 | 8 | Ab welchem Nenner zeigt das Gerät Gleitkomma-Ergebnisse (z. B. Integrale) noch als Bruch? | Kettenbruch bis Nenner 100000, 15 Stellen genau |
+| 9 | Reihenfolge der Lösungen bei Grad 3/4 (Modus A) | reelle Lösungen absteigend, dann komplexe |
+| 10 | Text bei Polynom ohne reelle Lösung, wenn komplexe Lösungen im SETUP aus sind | `Keine reell. Lösg` |
+| 11 | Beschriftung des Scheitelpunkts (Modus A, Grad 2) | `𝑥-Wert Minimum=` / `𝑦-Wert Maximum=` |
+| 12 | Text der Abfrage „Anzahl der Unbekannten“ | `Unbekannte?` / `2~4 wählen` |
+| 13 | Seitenaufteilung OPTN in Modus 4/5 | S.1 definieren, bearbeiten, A, B · S.2 C, D, Ans, Det/Skalarprodukt · S.3 Rest |
+| 14 | Abfragetexte beim Definieren einer Matrix | `Zeilen?` / `Spalten?` / `1~4 wählen` |
+| 15 | Schreibweise SOLVE mit d/dx: Original zeigt 1,333333341 (Rechenrauschen) | App zeigt 1,333333333 |
